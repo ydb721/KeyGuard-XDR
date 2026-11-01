@@ -1,0 +1,13 @@
+{
+  "name": "keyguard-xdr-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KeyGuard XDR v0.1 · Stone + Emerald SOC demonstration interface",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check app.js && node --check server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
