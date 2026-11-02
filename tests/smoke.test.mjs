@@ -1,75 +1,97 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import {resolve, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
-const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-function harness(savedTheme=null){
- const listeners=new Map();const cache=new Map();
- const classes=()=>({add(){},remove(){},toggle(){}});
- const el=id=>({id,innerHTML:'',textContent:'',value:'',disabled:false,hidden:false,dataset:{},classList:classes(),setAttribute(name,value){this[name]=value},removeAttribute(){},addEventListener(e,fn){listeners.set(id+':'+e,fn)}});
- const items=new Map();
- const localCache=new Map(savedTheme?[['keyguard-xdr-theme-v0.1',savedTheme]]:[]);
- const document={body:{dataset:{theme:'light'}},getElementById(id){if(!items.has(id))items.set(id,el(id));return items.get(id)},querySelectorAll(){return[]},addEventListener(e,fn){listeners.set('document:'+e,fn)}};
- const window={scrollTo(){},addEventListener(e,fn){listeners.set('window:'+e,fn)}};
- const localStorage={getItem:k=>localCache.get(k)??null,setItem:(k,v)=>localCache.set(k,v)};
- const context=vm.createContext({document,window,localStorage,location:{hash:''},console,Date,Intl,structuredClone,setTimeout,clearTimeout,setInterval:()=>1,Blob,URL});
- vm.runInContext(readFileSync(resolve(root,'app.js'),'utf8'),context);
- return {ctx:context,items,cache:localCache,run:s=>vm.runInContext(s,context),listeners};
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const app=readFileSync(resolve(root,'app.js'),'utf8');
+const read=name=>readFileSync(resolve(root,name),'utf8');
+
+function element(id='') {
+ const classes=new Set();
+ return {id,innerHTML:'',textContent:'',value:'',disabled:false,hidden:false,dataset:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,on)=>{if(on===undefined){classes.has(x)?classes.delete(x):classes.add(x);return classes.has(x)}on?classes.add(x):classes.delete(x);return on},contains:x=>classes.has(x)},setAttribute(name,value){this[name]=String(value)},removeAttribute(name){delete this[name]},addEventListener(){},click(){},remove(){}};
 }
 
-test('v0.1 renders original demo data and asset inventory',()=>{
+function harness(savedTheme=null,hash='') {
+ const items=new Map(),local=new Map(savedTheme?[['keyguard-xdr-theme-v0.1',savedTheme]]:[]);
+ const get=id=>{if(!items.has(id))items.set(id,element(id));return items.get(id)};
+ const pages=['overview','incidents','lab'].map(id=>get(`page-${id}`));
+ const nav=['overview','incidents','lab'].map(page=>Object.assign(element(),{dataset:{page}}));
+ const statuses=['ALL','OPEN','INVESTIGATING','CONTAINED'].map(status=>Object.assign(element(),{dataset:{status}}));
+ const document={body:{dataset:{theme:'light'}},getElementById:get,querySelectorAll(selector){if(selector==='.page')return pages;if(selector==='[data-page]')return nav;if(selector==='[data-status]')return statuses;return[]},addEventListener(){},createElement:()=>element()};
+ const context=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},localStorage:{getItem:k=>local.get(k)??null,setItem:(k,v)=>local.set(k,v)},location:{hash},console,Date,Intl,structuredClone,setTimeout:()=>1,clearTimeout(){},Blob,URL:{createObjectURL:()=>'',revokeObjectURL(){}}});
+ vm.runInContext(app,context);
+ return {items,local,ctx:context,run:code=>vm.runInContext(code,context)};
+}
+
+test('initial v0.1.0 demo dataset is preserved and rendered in v0.1.1',()=>{
  const h=harness();
  assert.equal(h.run('state.incidents.length'),5);
  assert.equal(h.run('state.audit.length'),4);
- assert.match(h.items.get('asset-count').textContent,/5건/);
- assert.match(h.items.get('metric-grid').innerHTML,/조치 대기 사고/);
- assert.match(h.items.get('asset-body').innerHTML,/billing-api/);
- assert.match(h.items.get('rules-body').innerHTML,/KG-CRED-01/);
+ assert.match(h.items.get('metric-grid').innerHTML,/조사 대기 사고/);
+ assert.match(h.items.get('metric-grid').innerHTML,/metric-value">3/);
+ assert.match(h.items.get('queue-body').innerHTML,/KG-0214/);
+ assert.match(h.items.get('incident-detail').innerHTML,/KG-CRED-01/);
+ assert.match(h.items.get('incident-detail').innerHTML,/테스트 키 식별자/);
+ assert.match(h.items.get('incident-detail').innerHTML,/billing-api/);
 });
 
-test('simulation changes incidents, assets, audit and blocks duplicate response',()=>{
- const h=harness();
- h.run('runScenario()');
+test('simulation creates an incident, updates KPI and records audit events',()=>{
+ const h=harness();h.run('run()');
  assert.equal(h.run('state.incidents.length'),6);
  assert.equal(h.run('state.audit.length'),6);
- assert.match(h.items.get('asset-body').innerHTML,/demo-payment-api/);
- h.run('respondScenario()');
- assert.equal(h.run('state.incidents[0].status'),'CONTAINED');
- assert.equal(h.run('state.audit.length'),7);
- h.run('respondScenario()');
- assert.equal(h.run('state.audit.length'),7);
- assert.match(h.items.get('lab-output').innerHTML,/실제 키 폐기나 외부 API 차단 효과는 검증되지 않았습니다/);
+ assert.equal(h.run('state.incidents[0].asset'),'demo-payment-api');
+ assert.match(h.items.get('metric-grid').innerHTML,/metric-value">4/);
+ assert.match(h.items.get('incident-detail').innerHTML,/demo-payment-api/);
+ assert.match(h.items.get('lab-output').innerHTML,/모의 사고가 생성되었습니다/);
 });
 
-test('incident and asset filtering and reset',()=>{
+test('search, status and severity filters execute against incident state',()=>{
  const h=harness();
- h.run("state.assetFilter='Cloud';renderAssets()");
- assert.match(h.items.get('asset-count').textContent,/3건 \/ 총 5건/);
- h.run("state.assetSearch='not-a-real-asset';renderAssets()");
- assert.match(h.items.get('asset-body').innerHTML,/검색 조건에 맞는 자산이 없습니다/);
- h.run("state.search='no-such-incident';renderIncidents()");
- assert.match(h.items.get('incident-body').innerHTML,/검색 조건에 맞는 사건이 없습니다/);
- h.run('state=INITIAL_STATE();renderAll()');
+ h.run("state.search='no-such-incident';incidents()");
+ assert.match(h.items.get('incident-body').innerHTML,/검색 조건에 맞는 사고가 없습니다/);
+ h.run("state.search='';state.status='CONTAINED';incidents()");
+ assert.match(h.items.get('incident-body').innerHTML,/KG-0211/);
+ assert.doesNotMatch(h.items.get('incident-body').innerHTML,/KG-0214/);
+ h.run("state.status='ALL';state.severity='HIGH';incidents()");
+ assert.match(h.items.get('incident-body').innerHTML,/KG-0214/);
+ assert.doesNotMatch(h.items.get('incident-body').innerHTML,/KG-0212/);
+});
+
+test('investigation and response mutate state once and append observable audit records',()=>{
+ const h=harness();h.run('run()');
+ const id=h.run('state.last');
+ h.run(`change('${id}','INVESTIGATING')`);
+ assert.equal(h.run(`state.incidents.find(x=>x.id==='${id}').status`),'INVESTIGATING');
+ assert.equal(h.run('state.audit.length'),7);
+ h.run(`change('${id}','CONTAINED')`);
+ assert.equal(h.run(`state.incidents.find(x=>x.id==='${id}').status`),'CONTAINED');
+ assert.equal(h.run('state.audit.length'),8);
+ h.run(`change('${id}','CONTAINED')`);
+ assert.equal(h.run('state.audit.length'),8);
+ assert.match(h.items.get('lab-output').innerHTML,/실제 API 요청 차단 여부: 미검증/);
+ assert.match(h.items.get('audit-body').innerHTML,/RESPONSE/);
+});
+
+test('reset restores the documented seed data',()=>{
+ const h=harness();h.run('run()');h.run('state=start();render()');
  assert.equal(h.run('state.incidents.length'),5);
+ assert.equal(h.run('state.audit.length'),4);
+ assert.match(h.items.get('queue-body').innerHTML,/KG-0210/);
 });
 
-test('theme default, persisted dark, and switching',()=>{
- const a=harness();assert.equal(a.ctx.document.body.dataset.theme,'light');
- a.run("applyTheme('dark')");
- assert.equal(a.ctx.document.body.dataset.theme,'dark');
- assert.equal(a.cache.get('keyguard-xdr-theme-v0.1'),'dark');
- const b=harness('dark');assert.equal(b.ctx.document.body.dataset.theme,'dark');
- assert.equal(b.items.get('theme-label').textContent,'라이트 모드');
+test('theme selection persists and legacy hashes map to the unified pages',()=>{
+ const h=harness();assert.equal(h.ctx.document.body.dataset.theme,'light');
+ h.run("theme('dark')");assert.equal(h.ctx.document.body.dataset.theme,'dark');assert.equal(h.local.get('keyguard-xdr-theme-v0.1'),'dark');
+ const restored=harness('dark');assert.equal(restored.ctx.document.body.dataset.theme,'dark');assert.equal(restored.items.get('theme-label').textContent,'라이트 모드');
+ for(const [hash,location] of [['#rules','Investigate'],['#assets','Investigate'],['#audit','Respond & Verify'],['#unknown','Detect']]){const legacy=harness(null,hash);assert.equal(legacy.items.get('top-location').textContent,location)}
 });
 
-test('no external network request APIs in app and dark/light styles included',()=>{
- const app=readFileSync(resolve(root,'app.js'),'utf8');
- const css=readFileSync(resolve(root,'styles.css'),'utf8');
+test('static safety and minimal navigation contracts remain explicit',()=>{
+ const html=read('index.html'),css=read('styles.css');
+ assert.equal((html.match(/data-page=/g)||[]).length,3);
  assert.doesNotMatch(app,/\bfetch\s*\(|XMLHttpRequest|WebSocket\s*\(/);
- assert.match(css,/data-theme=dark/);
- assert.match(css,/data-theme=light/);
- assert.match(readFileSync(resolve(root,'index.html'),'utf8'),/KeyGuard XDR v0\.1/);
+ assert.match(css,/data-theme=light/);assert.match(css,/data-theme=dark/);
 });
