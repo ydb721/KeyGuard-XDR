@@ -1,4 +1,4 @@
-# KeyGuard XDR v0.1
+# KeyGuard XDR v0.1.1 — Minimal SOC UI
 
 > **Cloud Threat Detection & Response · Stone + Emerald Edition**  
 > 독립적인 XDR 콘셉트 웹 UI, 교육용 시뮬레이션 전용
@@ -7,7 +7,7 @@
 
 클라우드 인증정보 악용과 API 보안 사고를 주제로, 보안 분석가가 이벤트를 확인하고 사고를 분류·조사·대응하는 과정을 재현한다. ALEPH 방어전에서 다룬 XDR 개념을 확장하되 **기존 케셰브 UI·운영 연결과 분리된 별도 프로젝트**다.
 
-이 버전은 **UI/UX와 상태 전환을 검증하는 v0.1 프론트엔드 시제품**이다. 실제 탐지 엔진, API 키 폐기, Windows 로그 수집, 보안 정책 적용, 클라우드 접속은 구현되지 않았다.
+이 버전은 **UI/UX와 상태 전환을 검증하는 v0.1.1 프론트엔드 시제품**이다. 실제 탐지 엔진, API 키 폐기, Windows 로그 수집, 보안 정책 적용, 클라우드 접속은 구현되지 않았다.
 
 ## 실행
 
@@ -34,12 +34,9 @@ npm.cmd start
 
 | 화면 | 현재 구현 범위 |
 |---|---|
-| **Overview** | 사고 수, HIGH 위험도, 조치 상태, 출처별 증거, 사건 추이, 탐지 규칙 요약 |
-| **Incidents** | 사고 검색·심각도/상태 필터, 조사 상세·증거·MITRE 참조, 조사·모의 격리 상태 전환 |
-| **Detection Rules** | 다섯 가지 합성 규칙 카탈로그, MITRE 식별자, 연결된 사건 수 |
-| **Assets** | 관련 사건에서 계산한 가상 자산 목록, API/Cloud/Endpoint 필터, 검색 |
-| **Response Lab** | Credential Misuse / Brute Force / Exfiltration 모의 시나리오 생성, 모의 대응 |
-| **Audit Log** | 사고 생성·탐지·조사·대응의 브라우저 기록, 유형별 필터, CSV 저장 |
+| **보안 현황 (Detect)** | 공통 사고 데이터로 계산한 조사 대기, HIGH 위험도, 대응 완료 KPI와 최근 사고 |
+| **사고 분석 (Investigate)** | 사고 검색·심각도/상태 필터, 규칙·증거·MITRE·영향 자산, 조사·모의 대응 상태 전환 |
+| **대응 및 검증 (Respond & Verify)** | 3개 모의 시나리오, 대응 결과, 조치 이력과 CSV 저장 |
 
 ### 동작 확인 순서
 
@@ -93,4 +90,4 @@ KeyGuard-XDR-v0.1/
 
 ## 버전
 
-**v0.1.0** — 2026-11-01: Stone + Emerald 기본 라이트·에메랄드 다크 테마, 6개 SOC 화면, 브라우저 시뮬레이션, 테스트/문서 제공.
+**v0.1.1** — 2026-11-02: Minimal SOC UI, 3개 업무 흐름, 브라우저 시뮬레이션, 테스트/문서 제공.
