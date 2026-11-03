@@ -6,4 +6,6 @@ node_modules/
 .DS_Store
 coverage/
 /data/
+/data/lab-state.json
+/data/.lab-state-*.tmp
 *.jsonl

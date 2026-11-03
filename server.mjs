@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname, extname } from 'node:path';
 import { createEventStore, StoreError } from './event-store.mjs';
 import { detectThreats } from './rule-engine.mjs';
+import { createLabRoutes } from './lab-routes.mjs';
+import { LabError } from './key-store.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 export const DEMO_TOKEN = 'sim-keyguard-public-demo-v0.2';
-const allowed = new Set(['/', '/index.html', '/styles.css', '/app.js', '/local-api.js']);
+const allowed = new Set(['/', '/index.html', '/styles.css', '/app.js', '/local-api.js', '/lab-api.js', '/lab-ui.js']);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const headers = {
   'Cache-Control': 'no-store',
@@ -21,8 +23,9 @@ function json(res, status, body, extra = {}) {
 }
 const error = (res, status, code, extra) => json(res, status, { error: { code, message: code } }, extra);
 
-export async function createLocalServer({ store = createEventStore() } = {}) {
+export async function createLocalServer({ store = createEventStore(), keyStore, operatorSecret = null } = {}) {
   await store.initialize();
+  const lab = await createLabRoutes({keyStore,operatorSecret,publicToken:DEMO_TOKEN});
   return http.createServer(async (req, res) => {
     try {
       const port = res.socket.localPort;
@@ -37,6 +40,7 @@ export async function createLocalServer({ store = createEventStore() } = {}) {
       const url = new URL(req.url, 'http://127.0.0.1');
       const path = url.pathname;
       if (path !== req.url.split('?')[0]) return error(res, 400, 'INVALID_URL');
+      if (path.startsWith('/api/lab/')) return await lab(req,res,url,(status,body,extra)=>json(res,status,body,extra));
       const api = ['/api/health', '/api/test/resource', '/api/events', '/api/detections'].includes(path);
       if (!api && !allowed.has(path)) return error(res, 404, 'NOT_FOUND');
       if (req.method !== 'GET' && !(allowed.has(path) && req.method === 'HEAD')) {
@@ -45,7 +49,7 @@ export async function createLocalServer({ store = createEventStore() } = {}) {
       if (api && !['/api/events', '/api/detections'].includes(path) && url.search) return error(res, 400, 'INVALID_QUERY');
       if (path === '/api/health') {
         await store.check();
-        return json(res, 200, { status: 'ok', version: '0.4.0', scope: 'localhost-education-only' });
+        return json(res, 200, { status: 'ok', version: '0.5.0', scope: 'localhost-education-only' });
       }
       if (path === '/api/test/resource') {
         const status = req.headers.authorization === `Bearer ${DEMO_TOKEN}` ? 200 : 401;
@@ -71,6 +75,8 @@ export async function createLocalServer({ store = createEventStore() } = {}) {
       res.writeHead(200, { ...headers, 'Content-Type': types[extname(rel)] });
       res.end(req.method === 'HEAD' ? undefined : content);
     } catch (err) {
+      if(res.destroyed)return;
+      if(err instanceof LabError)return error(res,err.status,err.code);
       error(res, err instanceof StoreError ? 503 : 500,
         err instanceof StoreError ? err.code : 'LOCAL_SERVER_ERROR');
     }
@@ -80,7 +86,7 @@ export async function createLocalServer({ store = createEventStore() } = {}) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 5173);
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw Error('INVALID_LOCAL_PORT');
-  const server = await createLocalServer();
+  const server = await createLocalServer({operatorSecret:process.env.KEYGUARD_OPERATOR_SECRET});
   server.on('error', () => { console.error('LOCAL_SERVER_START_FAILED'); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => console.log(`KeyGuard XDR v0.4.0: http://127.0.0.1:${port}`));
+  server.listen(port, '127.0.0.1', () => console.log(`KeyGuard XDR v0.5.0: http://127.0.0.1:${port}`));
 }
