@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.0 — 2026-11-03
+
+### Added
+- localhost 전용 health·인증 테스트 resource·이벤트 조회 API
+- 공개 교육용 토큰에 따른 실제 200/401 결과와 일치하는 UUID·UTC 이벤트
+- JSONL 영속 저장, 직렬 쓰기와 동기화, 재시작 후 조회 및 고유 ID 검사
+- 5 MiB 파일 상한, 무결성·I/O 장애 503, 기존 파일 보존 및 수동 복구 정책
+- Host/Origin·메서드·경로 제한, no-store, 조회 기본 50·최대 100건
+- 별도 실제 HTTP 통합 테스트: 동시 요청, 프로세스 재시작, 장애 주입, 손상·상한·비밀정보 제외 검증
+
+### Changed
+- package 버전 0.2.0, 신규 모듈·테스트 문법 검사 포함
+- README의 시연 절차를 현재 3개 화면 기준으로 수정하고 API·저장소 정책 문서화
+- 이벤트 파일 Git 추적 제외
+
+### Preserved / Not implemented
+- app.js·index.html·styles.css·기존 스모크 테스트 7개 유지, 프론트엔드 API 연결 없음
+- 자동 탐지·상관분석, 키 폐기·재발급, 외부 클라우드 연결은 미구현
+
 ## v0.1.1 — 2026-11-02
 
 ### Changed
