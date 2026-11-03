@@ -1,12 +1,12 @@
 {
   "name": "keyguard-xdr-ui",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "KeyGuard XDR v0.1.1 · Minimal SOC UI demonstration interface",
+  "description": "KeyGuard XDR v0.2.0 · Local educational HTTP event collector with preserved demo UI",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs",
+    "check": "node --check app.js && node --check server.mjs && node --check event-store.mjs && node --check tests/http.test.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "engines": { "node": ">=20" }
