@@ -89,9 +89,17 @@ test('theme selection persists and legacy hashes map to the unified pages',()=>{
  for(const [hash,location] of [['#rules','Investigate'],['#assets','Investigate'],['#audit','Respond & Verify'],['#unknown','Detect']]){const legacy=harness(null,hash);assert.equal(legacy.items.get('top-location').textContent,location)}
 });
 
-test('static safety and minimal navigation contracts remain explicit',()=>{
+test('same-origin read-only API safety and minimal navigation contracts remain explicit',async()=>{
  const html=read('index.html'),css=read('styles.css');
  assert.equal((html.match(/data-page=/g)||[]).length,3);
- assert.doesNotMatch(app,/\bfetch\s*\(|XMLHttpRequest|WebSocket\s*\(/);
+ const calls=[];
+ const ctx=vm.createContext({AbortController,setTimeout,clearTimeout,Date,fetch:async(path,options)=>{
+  calls.push({path,options});
+  const body=path==='/api/health'?{status:'ok',version:'0.4.0',scope:'localhost-education-only'}:path.startsWith('/api/events')?{events:[],count:0,limit:100}:{detections:[],count:0,limit:100};
+  return{ok:true,headers:{get:()=> 'application/json'},json:async()=>body};
+ }});
+ vm.runInContext(read('local-api.js'),ctx);await vm.runInContext('LocalApi.load()',ctx);
+ assert.deepEqual(calls.map(c=>c.path),['/api/health','/api/events?limit=100','/api/detections?limit=100']);
+ for(const {options} of calls){assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.equal(options.mode,'same-origin');assert.equal(options.method,'GET');assert.equal(options.redirect,'error');assert.equal(options.headers,undefined)}
  assert.match(css,/data-theme=light/);assert.match(css,/data-theme=dark/);
 });
