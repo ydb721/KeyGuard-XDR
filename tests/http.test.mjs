@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { createLocalServer, DEMO_TOKEN } from '../server.mjs';
 import { createEventStore, MAX_STORE_BYTES } from '../event-store.mjs';
+import { crossSourceFixture } from './fixtures/cross-source.mjs';
 
 const auth = { Authorization: `Bearer ${DEMO_TOKEN}` };
 function request(port, path = '/api/health', headers = {}, method = 'GET') {
@@ -291,4 +292,123 @@ test('frontend repository contents match HEAD and event files are ignored by Git
     assert.equal(working, original, file);
   }
   assert.match(execFileSync('git', ['check-ignore', 'data/events.jsonl', 'example.jsonl'], { encoding: 'utf8' }), /data\/events.jsonl/);
+});
+
+// Nine-field v0.2.0-compatible snapshots, not new production event types.
+function storedEvent(index, milliseconds, success = false) {
+  return {
+    eventId: `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`,
+    timestamp: new Date(Date.parse('2026-11-03T00:00:00.000Z') + milliseconds).toISOString(),
+    source: 'local-http', eventType: success ? 'authentication_success' : 'authentication_failure',
+    method: 'GET', path: '/api/test/resource', statusCode: success ? 200 : 401,
+    outcome: success ? 'success' : 'failure', assetId: 'demo-test-resource',
+  };
+}
+const jsonl = events => events.map(e => JSON.stringify(e) + '\n').join('');
+
+test('detection API analyzes actual HTTP failures/success, remains read-only and repeats across restart', async t => {
+  const f = await fixture(t);
+  assert.deepEqual((await f.get('/api/detections')).body, { detections: [], count: 0, limit: 50 });
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    const r = await f.get('/api/test/resource'); assert.equal(r.status, 401); ids.push(r.body.eventId);
+  }
+  // Avoid relying on millisecond clock resolution for R002's strict later-than contract.
+  const lastTimestamp = JSON.parse((await readFile(f.file, 'utf8')).trim().split('\n').at(-1)).timestamp;
+  while (Date.now() <= Date.parse(lastTimestamp)) await new Promise(resolve => setTimeout(resolve, 1));
+  const success = await f.get('/api/test/resource', auth); assert.equal(success.status, 200);
+  const before = await readFile(f.file);
+  const response = await f.get('/api/detections?limit=10', { ...auth, 'X-Private-Marker': 'do-not-reflect' });
+  assert.equal(response.status, 200); assert.equal(response.body.count, 2); assert.equal(response.body.limit, 10);
+  assert.deepEqual(response.body.detections.map(d => d.ruleId), ['KG-R002', 'KG-R001']);
+  assert.deepEqual(response.body.detections[1].evidenceEventIds, ids);
+  assert.equal(response.body.detections[0].successEventId, success.body.eventId);
+  assert.ok(response.body.detections.every(d => d.synthetic === false && d.observedSources.join() === 'local-http'));
+  for (const secret of [DEMO_TOKEN, 'Authorization', 'do-not-reflect', f.file]) assert.ok(!response.text.includes(secret));
+  assert.equal(response.headers['cache-control'], 'no-store');
+  assert.equal(response.headers['access-control-allow-origin'], undefined);
+  assert.match(response.headers['content-security-policy'], /connect-src 'none'/);
+  assert.deepEqual((await f.get('/api/detections?limit=10')).body, response.body);
+  assert.equal((await f.get('/api/events')).body.count, 6);
+  assert.deepEqual(await readFile(f.file), before);
+  await new Promise(resolve => f.server.close(resolve));
+  const restarted = await createLocalServer({ store: createEventStore({ file: f.file }) });
+  restarted.listen(0, '127.0.0.1'); await once(restarted, 'listening');
+  t.after(() => new Promise(resolve => restarted.close(resolve)));
+  assert.deepEqual((await request(restarted.address().port, '/api/detections?limit=10')).body, response.body);
+});
+
+test('detection API scans past public event limit of 100 rather than losing older evidence', async t => {
+  const events = Array.from({ length: 5 }, (_, i) => storedEvent(i, i * 1000));
+  events.push(...Array.from({ length: 105 }, (_, i) => storedEvent(i + 5, 300000 + i * 1000, true)));
+  const f = await fixture(t, { content: jsonl(events) });
+  const recent = (await f.get('/api/events?limit=100')).body.events;
+  assert.equal(recent.length, 100); assert.ok(recent.every(e => e.statusCode === 200));
+  const response = await f.get('/api/detections');
+  assert.equal(response.status, 200); assert.equal(response.body.count, 1);
+  assert.equal(response.body.detections[0].ruleId, 'KG-R001');
+  assert.deepEqual(response.body.detections[0].evidenceEventIds, events.slice(0, 5).map(e => e.eventId));
+});
+
+test('detection API default/1/100 limits, latest order, invalid queries and byte preservation', async t => {
+  const content = jsonl(Array.from({ length: 510 }, (_, i) => storedEvent(i, i * 1000)));
+  const f = await fixture(t, { content });
+  for (const [query, count, limit] of [['', 50, 50], ['?limit=1', 1, 1], ['?limit=100', 100, 100]]) {
+    const r = await f.get('/api/detections' + query);
+    assert.equal(r.status, 200); assert.equal(r.body.count, count); assert.equal(r.body.limit, limit);
+    assert.equal(r.body.detections[0].detectedAt, storedEvent(509, 509000).timestamp);
+    assert.equal(new Set(r.body.detections.map(d => d.detectionId)).size, count);
+    assert.ok(r.body.detections.every((d, i, all) => !i || Date.parse(all[i - 1].detectedAt) >= Date.parse(d.detectedAt)));
+  }
+  for (const query of ['limit=', 'limit=0', 'limit=-1', 'limit=101', 'limit=1.5', 'limit=x', 'limit=1&limit=2', 'unknown=x', 'limit=1&unknown=x']) {
+    assert.equal((await f.get('/api/detections?' + query)).status, 400, query);
+  }
+  assert.equal(await readFile(f.file, 'utf8'), content);
+});
+
+test('detection API keeps Host/Origin and GET-only restrictions', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.get('/api/detections', { Host: `evil.example:${f.port}` })).status, 403);
+  for (const origin of ['https://evil.example', 'null']) assert.equal((await f.get('/api/detections', { Origin: origin })).status, 403);
+  assert.equal((await f.get('/api/detections', { Origin: `http://127.0.0.1:${f.port}` })).status, 200);
+  for (const method of ['POST', 'HEAD', 'OPTIONS']) {
+    const r = await f.get('/api/detections', {}, method); assert.equal(r.status, 405); assert.equal(r.headers.allow, 'GET');
+  }
+  assert.equal((await f.get('/api/events')).body.count, 0);
+});
+
+test('detection API fails closed on corrupt/duplicate/missing-field snapshots and preserves original JSONL', async t => {
+  const valid = storedEvent(1, 0);
+  const missing = { ...valid }; delete missing.assetId;
+  for (const content of ['Authorization-private-marker\n', jsonl([valid, valid]), jsonl([missing])]) {
+    const f = await fixture(t, { content });
+    const r = await f.get('/api/detections');
+    assert.equal(r.status, 503); assert.equal(r.body.error.code, 'EVENT_STORE_CORRUPT');
+    for (const secret of ['Authorization', 'private-marker', f.file, 'stack']) assert.ok(!r.text.includes(secret));
+    assert.equal(await readFile(f.file, 'utf8'), content);
+  }
+});
+
+test('detection internal reads retain I/O, runtime corruption and capacity error policy', async t => {
+  const io = await fixture(t, { directory: true });
+  assert.equal((await io.get('/api/detections')).body.error.code, 'EVENT_STORE_UNAVAILABLE');
+  assert.equal((await io.get('/api/detections')).status, 503);
+  const content = jsonl([storedEvent(1, 0)]);
+  const full = await fixture(t, { content, maxBytes: Buffer.byteLength(content) - 1 });
+  const r = await full.get('/api/detections');
+  assert.equal(r.status, 503); assert.equal(r.body.error.code, 'EVENT_STORE_FULL');
+  assert.equal(await readFile(full.file, 'utf8'), content);
+  const runtime = await fixture(t, { content });
+  assert.equal((await runtime.get('/api/detections')).status, 200);
+  await writeFile(runtime.file, content + '{broken\n');
+  assert.equal((await runtime.get('/api/detections')).status, 503);
+  assert.equal(await readFile(runtime.file, 'utf8'), content + '{broken\n');
+});
+
+test('synthetic Cloud/Endpoint fixture is rejected by live JSONL contract rather than mixed into detection API', async t => {
+  const content = jsonl(crossSourceFixture);
+  const f = await fixture(t, { content });
+  const r = await f.get('/api/detections');
+  assert.equal(r.status, 503); assert.equal(r.body.error.code, 'EVENT_STORE_CORRUPT');
+  assert.equal(await readFile(f.file, 'utf8'), content);
 });
