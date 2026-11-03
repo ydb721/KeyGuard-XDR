@@ -84,6 +84,8 @@ export function createEventStore({ file = defaultFile, maxBytes = MAX_STORE_BYTE
     },
     check: () => serial(async () => { await read(); }),
     list: limit => serial(async () => (await read()).events.slice(-limit).reverse()),
+    // Internal validated snapshot; public /api/events limits must not truncate rule input.
+    readAll: () => serial(async () => (await read()).events),
     record: statusCode => serial(async () => {
       const { ids, size } = await read();
       let eventId;
