@@ -1,13 +1,13 @@
-# KeyGuard XDR v0.4.0 — SOC UI & Local Detection API Integration
+# KeyGuard XDR v0.5.0 — Local Test-Key Lifecycle Lab
 
-> **Cloud Threat Detection & Response · Stone + Emerald Edition**  
+> **Cloud Threat Detection & Response · Pearl Lilac Edition**
 > 독립적인 XDR 콘셉트 웹 UI와 localhost 전용 교육용 HTTP 백엔드
 
 ## 프로젝트 목표
 
 클라우드 인증정보 악용과 API 보안 사고를 주제로, 보안 분석가가 이벤트를 확인하고 사고를 분류·조사·대응하는 과정을 재현한다. ALEPH 방어전에서 다룬 XDR 개념을 확장하되 **기존 케셰브 UI·운영 연결과 분리된 별도 프로젝트**다.
 
-이 버전은 **실제 로컬 HTTP 이벤트와 규칙 기반 의심 신호를 기존 SOC 화면에서 조회·조사하는 교육용 시스템**이다. Detect와 Investigate에서 로컬 조회와 브라우저 시뮬레이션을 명확히 전환한다. Respond & Verify는 모의 대응 전용이다. 탐지는 침해 확정이 아니며, 실제 키 폐기·접근 차단·조사 상태 저장, Windows 로그 수집, 실제 Cloud·Endpoint 수집과 외부 클라우드 연결은 미구현이다.
+이 버전은 **실제 로컬 HTTP 이벤트와 규칙 기반 의심 신호를 조회하고, 별도 로컬 실습 키의 발급·폐기·재발급 효과를 검증하는 교육용 시스템**이다. Detect와 Investigate는 로컬 조회와 브라우저 시뮬레이션을 명확히 전환한다. 키 수명주기 실습은 Respond & Verify에서만 명시적으로 실행되며 운영 키·외부 서비스와 연결되지 않는다.
 
 ## 실행
 
@@ -38,6 +38,7 @@ npm.cmd start
 | **보안 현황 (Detect)** | 로컬: 최근 조회 이벤트·탐지·인증 실패 수, 규칙별 수, 최근 탐지·이벤트. 모의: 기존 KPI·합성 사고 |
 | **사고 분석 (Investigate)** | 로컬: 탐지 검색·심각도 필터, 자산·분석 구간·사유·근거 이벤트 조회. 모의: 기존 상태 필터·조사·대응 |
 | **대응 및 검증 (Respond & Verify)** | 3개 모의 시나리오, 대응 결과, 조치 이력과 CSV 저장 |
+| **로컬 테스트 키 관리** | 운영자 확인 후 키 발급·폐기·재발급, 실제 localhost 200/401 검증, 별도 감사 조회 |
 
 ### 동작 확인 순서
 
@@ -50,10 +51,23 @@ npm.cmd start
 7. 테마를 전환하고 새로고침 후 테마 유지 여부를 확인한다. 모의 사고 상태는 새로고침 시 초기화된다.
 8. **데모 초기화**로 사고 5건·감사 기록 4건을 복원한다. 서버 JSONL 기록은 변경되지 않는다.
 
+### 로컬 키 수명주기 실습
+
+`npm.cmd start` 전에 공백 없는 ASCII 32~256자 운영자 비밀정보를 현재 PowerShell 세션에만 설정합니다. 이 값은 소스·Git·localStorage에 저장하지 마세요.
+
+```powershell
+$env:KEYGUARD_OPERATOR_SECRET = "직접-정한-32자-이상-교육용-운영자-비밀정보"
+npm.cmd start
+```
+
+`http://127.0.0.1:5173`의 **대응 및 검증**에서 해당 값을 직접 입력한 뒤 상태·감사를 조회합니다. 확인을 거쳐 키를 발급하고 HTTP 200을 검증한 뒤, 폐기하여 기존 키의 HTTP 401을 확인합니다. 다시 발급한 키는 200, 이전 키는 계속 401이어야 합니다.
+
+발급 응답의 키 원문은 한 번만 표시되고 서버에는 SHA-256 해시만 저장됩니다. 응답이 유실되면 원문을 복구하거나 자동 재발급하지 말고 상태·감사를 먼저 재조회하세요. `file://`와 GitHub Pages에서는 이 기능이 비활성화됩니다.
+
 ## 디자인 시스템
 
-- 기본 **Stone + Emerald Light**: `#F6F5F0` 배경, `#FFFFFF` 카드, `#087C57` 에메랄드 강조.
-- **Deep Charcoal + Emerald Dark**: `#171C19` 배경, `#222B25` 카드, `#57D3A0` 에메랄드 강조.
+- 기본 **Pearl Lilac Light**: `#F7F8FD` 배경, `#FFFFFF` 카드, `#7868E8` 라일락 강조.
+- **Soft Charcoal Lilac Dark**: `#20202B` 배경, `#303043` 카드, `#A496FF` 라일락 강조.
 - 심각도는 테마와 구분: High는 적색, Medium은 황갈색, Low는 보조색.
 - 화면은 데스크톱 정보 밀도 우선이며 모바일에서는 메뉴 가로 스크롤과 표 가로 스크롤을 지원한다.
 - 저장된 테마 키: `localStorage['keyguard-xdr-theme-v0.1']`. 모의 사고 기록은 새로고침하면 초기화된다.
@@ -69,13 +83,20 @@ KeyGuard-XDR/
 ├── server.mjs             # localhost 전용 정적 서버 + 로컬 API
 ├── event-store.mjs        # JSONL 검증·직렬 저장·제한 조회
 ├── rule-engine.mjs        # 순수 함수 기반 이벤트 시각 규칙 분석
-├── package.json           # v0.4.0 / 실행·검사 스크립트
+├── lab-api.js             # 키 관리 동일 출처 API 클라이언트
+├── lab-ui.js              # 키 관리 UI·확인·메모리 수명 관리
+├── key-store.mjs          # 키 해시·상태·감사 스냅샷의 원자 저장
+├── lab-routes.mjs         # 운영자 인증 로컬 키 수명주기 API
+├── package.json           # v0.5.0 / 실행·검사 스크립트
 ├── tests/smoke.test.mjs   # 기존 프론트엔드 회귀 테스트 7개
 ├── tests/http.test.mjs    # 실제 HTTP 통합 테스트
 ├── tests/rule-engine.test.mjs # 정상·의심 시나리오 규칙 검증
 ├── tests/frontend-api.test.mjs # UI·비동기 경합·실제 로컬 HTTP 연결 검증
 ├── tests/fixtures/cross-source.mjs # 저장소와 분리된 교육용 합성 자료
+├── tests/key-lifecycle.test.mjs # 키 수명주기 HTTP·영속성·실패 경계 검증
+├── tests/lab-ui.test.mjs # 키 관리 UI·메모리·비동기 경계 검증
 ├── data/events.jsonl     # 런타임 생성, Git 추적 제외
+├── data/lab-state.json   # 런타임 생성, Git 추적 제외
 ├── previews/              # 브라우저 검토용 화면 이미지
 ├── docs/PROJECT_SCOPE.md  # 목표 및 구현 범위
 ├── docs/UI_SPEC.md        # 메뉴 구성·컬러 시스템·상호작용
@@ -95,11 +116,11 @@ KeyGuard-XDR/
 
 ## 향후 구현 순서
 
-[docs/ROADMAP.md](docs/ROADMAP.md) 참고. 다음 단계는 v0.5.0 테스트 키 폐기·재발급 및 효과 검증이다. 현재 응답 조회는 읽기 전용이며 실제 Cloud·Endpoint 수집과 운영 연동은 제공하지 않는다.
+[docs/ROADMAP.md](docs/ROADMAP.md) 참고. v0.5.0은 로컬 실습 키의 폐기·재발급과 효과 검증을 완료했으며, 다음 단계에서는 실제 운영 환경이 아닌 별도 테스트 범위의 확장을 검토한다. 실제 Cloud·Endpoint 수집과 운영 연동은 제공하지 않는다.
 
 ## 버전
 
-**v0.4.0** — 2026-11-03: SOC 화면의 로컬 탐지·이벤트 조회 연결, 모의 출처 분리, 상태·오류·오래된 응답 보호. 기존 수집·규칙·저장소 계약과 모의 기능을 유지한다.
+**v0.5.0** — 2026-11-03: 로컬 교육용 테스트 키 수명주기, 실제 200/401 재검증, 키·감사 스냅샷 영속성을 추가했다. 기존 수집·규칙·UI 모의 기능을 유지한다.
 
 ## 로컬 API 사용
 
@@ -221,4 +242,4 @@ node --input-type=module -e "import {detectThreats} from './rule-engine.mjs'; im
 
 CSP는 `connect-src 'self'`로 변경했고 나머지 제한은 유지한다. `local-api.js`만 정적 허용 목록에 추가했다. 바인딩·Host/Origin·외부 CORS 차단·no-store·JSONL 원본 비노출은 동일하다. API 문자열은 textContent 또는 HTML 이스케이프로 표시하며 파일 경로·스택·원본 오류 응답·헤더·토큰을 UI에 표시하지 않는다. 테스트와 직접 Chrome 검증에서 목록·근거·HTML 패턴 비실행, 라이트/다크·모바일, 서버 중지 후 오류 및 재연결, file:// 모의 화면을 확인했다. 기존 JSONL은 삭제하지 않고 독립 임시 저장소로 검증했다.
 
-현재 한계는 100건 조회, 근거 개별 조회·페이지네이션 없음, 수동 새로고침, 탐지 조회 시 재계산, 브라우저 모의 상태의 새로고침 초기화다. v0.5.0 키 폐기·재발급은 별도의 명시적 API와 감사·효과 검증이 필요하며 현재 버튼은 실제 조치를 실행하지 않는다.
+현재 한계는 100건 조회, 근거 개별 조회·페이지네이션 없음, 수동 새로고침, 탐지 조회 시 재계산, 브라우저 모의 상태의 새로고침 초기화다. v0.5.0의 별도 로컬 키 관리 영역만 명시적 API와 감사·효과 검증을 수행하며, 기존 모의 대응 버튼은 실제 조치를 실행하지 않는다.

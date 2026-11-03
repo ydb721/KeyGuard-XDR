@@ -82,9 +82,10 @@ test('reset restores the documented seed data',()=>{
  assert.match(h.items.get('queue-body').innerHTML,/KG-0210/);
 });
 
-test('theme selection persists and legacy hashes map to the unified pages',()=>{
+test('icon-only theme control persists selection and legacy hashes map to the unified pages',()=>{
  const h=harness();assert.equal(h.ctx.document.body.dataset.theme,'light');
- h.run("theme('dark')");assert.equal(h.ctx.document.body.dataset.theme,'dark');assert.equal(h.local.get('keyguard-xdr-theme-v0.1'),'dark');
+ assert.equal(h.items.get('theme-toggle')['aria-label'],'다크 모드로 전환');
+ h.run("theme('dark')");assert.equal(h.ctx.document.body.dataset.theme,'dark');assert.equal(h.items.get('theme-toggle')['aria-label'],'라이트 모드로 전환');assert.equal(h.local.get('keyguard-xdr-theme-v0.1'),'dark');
  const restored=harness('dark');assert.equal(restored.ctx.document.body.dataset.theme,'dark');assert.equal(restored.items.get('theme-label').textContent,'라이트 모드');
  for(const [hash,location] of [['#rules','Investigate'],['#assets','Investigate'],['#audit','Respond & Verify'],['#unknown','Detect']]){const legacy=harness(null,hash);assert.equal(legacy.items.get('top-location').textContent,location)}
 });
@@ -102,4 +103,7 @@ test('same-origin read-only API safety and minimal navigation contracts remain e
  assert.deepEqual(calls.map(c=>c.path),['/api/health','/api/events?limit=100','/api/detections?limit=100']);
  for(const {options} of calls){assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.equal(options.mode,'same-origin');assert.equal(options.method,'GET');assert.equal(options.redirect,'error');assert.equal(options.headers,undefined)}
  assert.match(css,/data-theme=light/);assert.match(css,/data-theme=dark/);
+ assert.match(css,/#f7f8fd/i);assert.match(css,/#7868e8/i);assert.match(css,/#20202b/i);
+ assert.match(css,/\.theme-button\{width:40px!important/);assert.match(css,/data:image\/svg\+xml/);
+ assert.match(html,/id="theme-toggle" class="theme-button" aria-label="다크 모드로 전환"/);
 });
