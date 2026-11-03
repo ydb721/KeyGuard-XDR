@@ -7,13 +7,13 @@ import { detectThreats } from './rule-engine.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 export const DEMO_TOKEN = 'sim-keyguard-public-demo-v0.2';
-const allowed = new Set(['/', '/index.html', '/styles.css', '/app.js']);
+const allowed = new Set(['/', '/index.html', '/styles.css', '/app.js', '/local-api.js']);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const headers = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
 };
 function json(res, status, body, extra = {}) {
   res.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8', ...extra });
@@ -45,7 +45,7 @@ export async function createLocalServer({ store = createEventStore() } = {}) {
       if (api && !['/api/events', '/api/detections'].includes(path) && url.search) return error(res, 400, 'INVALID_QUERY');
       if (path === '/api/health') {
         await store.check();
-        return json(res, 200, { status: 'ok', version: '0.3.0', scope: 'localhost-education-only' });
+        return json(res, 200, { status: 'ok', version: '0.4.0', scope: 'localhost-education-only' });
       }
       if (path === '/api/test/resource') {
         const status = req.headers.authorization === `Bearer ${DEMO_TOKEN}` ? 200 : 401;
@@ -82,5 +82,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw Error('INVALID_LOCAL_PORT');
   const server = await createLocalServer();
   server.on('error', () => { console.error('LOCAL_SERVER_START_FAILED'); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => console.log(`KeyGuard XDR v0.3.0: http://127.0.0.1:${port}`));
+  server.listen(port, '127.0.0.1', () => console.log(`KeyGuard XDR v0.4.0: http://127.0.0.1:${port}`));
 }

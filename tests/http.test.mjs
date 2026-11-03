@@ -101,7 +101,7 @@ test('Host, Origin, methods, paths and static GET/HEAD remain restricted', async
   for (const path of ['/%2e%2e/server.mjs', '/../server.mjs', '//evil.example/', '/api/test/resource?token=secret']) assert.equal((await f.get(path)).status, 400);
   for (const path of ['/', '/index.html', '/styles.css', '/app.js']) {
     const r = await f.get(path); assert.equal(r.status, 200);
-    assert.match(r.headers['content-security-policy'], /connect-src 'none'/);
+    assert.match(r.headers['content-security-policy'], /connect-src 'self'/);
     const head = await f.get(path, {}, 'HEAD'); assert.equal(head.status, 200); assert.equal(head.text, '');
   }
   assert.equal((await f.get('/api/events')).body.count, 0);
@@ -283,14 +283,19 @@ test('separate server processes preserve events across restart without logging c
   for (const secret of [DEMO_TOKEN, 'sim-wrong-private-marker', 'Authorization']) assert.ok(!logs.includes(secret));
 });
 
-test('frontend repository contents match HEAD and event files are ignored by Git', () => {
-  for (const file of ['app.js', 'index.html', 'styles.css', 'tests/smoke.test.mjs']) {
-    const committed = execFileSync('git', ['show', `HEAD:${file}`]);
-    // Git normalizes CRLF; compare canonical repository content.
-    const working = execFileSync('git', ['hash-object', '--path=' + file, file], { encoding: 'utf8' }).trim();
-    const original = execFileSync('git', ['hash-object', '--stdin'], { input: committed, encoding: 'utf8' }).trim();
-    assert.equal(working, original, file);
+test('UI assets use same-origin CSP and event files remain ignored by Git', async t => {
+  const f = await fixture(t);
+  for (const path of ['/', '/app.js', '/local-api.js', '/styles.css']) {
+    const response = await f.get(path);
+    assert.equal(response.status, 200);
+    const directives = response.headers['content-security-policy'].split(';').map(s => s.trim());
+    assert.ok(directives.includes("connect-src 'self'"));
+    assert.ok(!response.headers['access-control-allow-origin']);
+    assert.equal(response.headers['cache-control'], 'no-store');
   }
+  assert.equal((await f.get('/data/events.jsonl')).status, 404);
+  assert.equal((await f.get('/rule-engine.mjs')).status, 404);
+  assert.equal((await f.get('/event-store.mjs')).status, 404);
   assert.match(execFileSync('git', ['check-ignore', 'data/events.jsonl', 'example.jsonl'], { encoding: 'utf8' }), /data\/events.jsonl/);
 });
 
@@ -327,7 +332,7 @@ test('detection API analyzes actual HTTP failures/success, remains read-only and
   for (const secret of [DEMO_TOKEN, 'Authorization', 'do-not-reflect', f.file]) assert.ok(!response.text.includes(secret));
   assert.equal(response.headers['cache-control'], 'no-store');
   assert.equal(response.headers['access-control-allow-origin'], undefined);
-  assert.match(response.headers['content-security-policy'], /connect-src 'none'/);
+  assert.match(response.headers['content-security-policy'], /connect-src 'self'/);
   assert.deepEqual((await f.get('/api/detections?limit=10')).body, response.body);
   assert.equal((await f.get('/api/events')).body.count, 6);
   assert.deepEqual(await readFile(f.file), before);

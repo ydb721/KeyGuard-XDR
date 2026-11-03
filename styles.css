@@ -1,4 +1,7 @@
 :root { font-family:Inter, 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif; font-synthesis:none; }
+[hidden] { display:none!important; }
+.source-controls{padding:14px 18px;margin-bottom:20px;display:grid;gap:8px}.source-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.source-controls p{color:var(--muted)}.source-controls small{color:var(--faint)}.source-controls p[data-status=Error],.source-controls p[data-status="Invalid Response"]{color:var(--red)}.rule-summary{color:var(--muted);margin:8px 0 16px}.local-events{margin-top:16px}.table-secondary,.detail-overline,.evidence-copy{overflow-wrap:anywhere;word-break:break-word}.evidence-copy{min-width:0}.evidence-copy p{margin-top:5px}.data-table td:first-child{max-width:420px}.detail-section>p{overflow-wrap:anywhere}.source-actions label{font-weight:650}
+@media(max-width:640px){.source-controls{padding:12px}.source-actions .field-select{max-width:100%}.source-controls small{overflow-wrap:anywhere}.simulation-banner div{flex-wrap:wrap}}
 * { box-sizing:border-box; }
 body {margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-size:13px; line-height:1.55; letter-spacing:-.012em; }
 body[data-theme=dark] { color-scheme:dark; --bg:#171c19;--aside:#1a201b;--header:#1d241f;--surface:#222b25;--hover:#2c3a30;--alt:#1c2821;--border:#35483c;--line:#314137;--text:#edf3ed;--muted:#abbcb0;--faint:#92a498;--blue:#57d3a0;--blue-soft:#1d4030;--neutral-soft:#303a32;--red:#ef8894;--red-soft:#48292f;--orange:#e7b86b;--orange-soft:#4a3722;--green:#77d7a2;--green-soft:#1c4230;--purple:#b4a9dc;--track:#39483e;--shadow:0 2px 12px rgba(0,0,0,.09); }
@@ -51,4 +54,5 @@ body{font-size:13px}
 .nav-item.active{border-color:transparent;box-shadow:inset 3px 0 0 var(--blue)}
 .metric-card,.surface{box-shadow:var(--shadow)}
 .status-summary{color:var(--faint);font-size:10px}
-@media(max-width:760px){.theme-button span{display:none}.theme-button{width:33px;justify-content:center;padding:0}.asset-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.asset-stat{padding:11px}.asset-stat strong{font-size:20px}.asset-table{min-width:750px}}
+@media(max-width:760px){.theme-button #theme-label{display:inline}.theme-button{width:auto;justify-content:center;padding:5px 8px}.utility-right .mode-label{display:none}.asset-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.asset-stat{padding:11px}.asset-stat strong{font-size:20px}.asset-table{min-width:750px}}
+.local-events .data-table{min-width:680px}

@@ -1,12 +1,12 @@
 {
   "name": "keyguard-xdr-ui",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "KeyGuard XDR v0.3.0 · Local educational rule-based threat detection with preserved demo UI",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check event-store.mjs && node --check rule-engine.mjs && node --check tests/http.test.mjs && node --check tests/rule-engine.test.mjs && node --check tests/fixtures/cross-source.mjs",
+    "check": "node --check app.js && node --check local-api.js && node --check tests/frontend-api.test.mjs && node --check server.mjs && node --check event-store.mjs && node --check rule-engine.mjs && node --check tests/http.test.mjs && node --check tests/rule-engine.test.mjs && node --check tests/fixtures/cross-source.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "engines": { "node": ">=20" }
