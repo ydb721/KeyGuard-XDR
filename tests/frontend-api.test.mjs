@@ -48,8 +48,10 @@ function harness(t, { data = dataset(), fetcher, protocol = 'http:', hostname = 
   const document = {body:{dataset:{}},getElementById:get,createElement:()=>element(),
     querySelectorAll:s=>s==='.page'?pages:s==='[data-page]'?nav:s==='[data-status]'?statuses:[],
     addEventListener:(key,fn)=>documentListeners.set(key,fn)};
+  let hash='';
+  const location={protocol,hostname,get hash(){return hash},set hash(value){hash=value&&!value.startsWith('#')?'#'+value:value}};
   const ctx = vm.createContext({document,window:{addEventListener:(key,fn)=>windowListeners.set(key,fn)},
-    location:{protocol,hostname,hash:''},Date,Intl,structuredClone,AbortController,Blob,
+    location,Date,Intl,structuredClone,AbortController,Blob,
     URL:{createObjectURL:()=>'',revokeObjectURL(){}},
     localStorage:{getItem:k=>local.get(k)??null,setItem:(k,v)=>local.set(k,v)},
     setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms);timers.add(timer);return timer},clearTimeout,
@@ -60,6 +62,7 @@ function harness(t, { data = dataset(), fetcher, protocol = 'http:', hostname = 
   return {items,ctx,calls,local,run:code=>vm.runInContext(code,ctx),ready:()=>vm.runInContext('live.pending',ctx),
     change:(id,value)=>{const el=get(id);el.value=value;return el.listeners.get('change')({target:el})},
     click:dataset=>documentListeners.get('click')({target:{closest:()=>({dataset})}}),
+    key:(key,dataset)=>{let prevented=false;documentListeners.get('keydown')({key,preventDefault(){prevented=true},target:{closest:()=>({click:()=>documentListeners.get('click')({target:{closest:()=>({dataset})}})})}});return prevented},
     hash:hash=>{ctx.location.hash=hash;windowListeners.get('hashchange')()},
   };
 }
@@ -387,4 +390,64 @@ test('Concise source labels distinguish local key management from browser simula
   h.run("run();change(state.last,'CONTAINED')");
   assert.match(h.items.get('lab-output').innerHTML,/모의 대응 기록 완료.*미검증/);
   assert.equal(h.run('state.audit.length'),7);
+});
+
+
+test('Detect local row opens the chosen evidence despite previous Investigate filters; internal selection does not navigate or refetch', async t => {
+  const h=harness(t);await h.ready();
+  const [first,second]=h.run('live.detections.map(d=>d.detectionId)');
+  h.run("live.search='not-present';live.severity='HIGH'");
+  h.click({detection:first});await h.ready();
+  assert.equal(h.run('current()'),'incidents');assert.equal(h.ctx.location.hash,'#incidents');
+  assert.equal(h.run('live.selected'),first);assert.ok(h.items.get('incident-detail').innerHTML.includes(first));
+  assert.equal(h.run('live.search'),'');assert.equal(h.run('live.severity'),'ALL');
+  const calls=h.calls.length;h.click({detection:second});
+  assert.equal(h.run('current()'),'incidents');assert.equal(h.run('live.selected'),second);
+  assert.ok(h.items.get('incident-detail').innerHTML.includes(second));assert.equal(h.calls.length,calls);
+});
+
+test('Detect demo row opens the chosen incident; Investigate row changes only selection and preserves filters', async t => {
+  const h=harness(t);await h.ready();h.change('data-source','demo');
+  h.run("state.search='not-present';state.severity='LOW';state.status='CONTAINED'");
+  const before=h.run('JSON.stringify([state.incidents,state.audit])');
+  h.click({incident:'KG-0214'});
+  assert.equal(h.run('current()'),'incidents');assert.equal(h.run('state.selected'),'KG-0214');
+  assert.match(h.items.get('incident-detail').innerHTML,/billing-api/);
+  assert.equal(h.run('state.search'),'');assert.equal(h.run('state.severity'),'ALL');assert.equal(h.run('state.status'),'ALL');
+  h.run("state.severity='MEDIUM';state.status='OPEN';incidents()");const calls=h.calls.length;
+  h.click({incident:'KG-0212'});
+  assert.equal(h.run('current()'),'incidents');assert.equal(h.run('state.selected'),'KG-0212');
+  assert.match(h.items.get('incident-detail').innerHTML,/identity-gateway/);
+  assert.equal(h.run('state.severity'),'MEDIUM');assert.equal(h.run('state.status'),'OPEN');
+  assert.equal(h.calls.length,calls);assert.equal(h.run('JSON.stringify([state.incidents,state.audit])'),before);
+});
+
+test('Enter and Space on local Detect rows follow the same selected-evidence navigation', async t => {
+  for(const key of ['Enter',' ']){
+    const h=harness(t);await h.ready();const id=h.run('live.detections[0].detectionId');
+    assert.equal(h.key(key,{detection:id}),true);await h.ready();
+    assert.equal(h.run('current()'),'incidents');assert.equal(h.run('live.selected'),id);
+    assert.ok(h.items.get('incident-detail').innerHTML.includes(id));
+  }
+});
+
+test('Enter and Space on demo Detect rows open the selected incident without changing simulation data', async t => {
+  for(const key of ['Enter',' ']){
+    const h=harness(t);await h.ready();h.change('data-source','demo');
+    assert.equal(h.key(key,{incident:'KG-0213'}),true);
+    assert.equal(h.run('current()'),'incidents');assert.equal(h.run('state.selected'),'KG-0213');
+    assert.match(h.items.get('incident-detail').innerHTML,/archive-service/);
+    assert.equal(h.run('state.incidents.length'),5);assert.equal(h.run('state.audit.length'),4);
+  }
+});
+
+test('Detect shortcut is analysis-only and conditional; sidebar Respond navigation remains available', async t => {
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<button id="detect-detail-link" class="link-btn" data-go="incidents">사고 분석 →<\/button>/);
+  const overview=html.slice(html.indexOf('<section id="page-overview"'),html.indexOf('<section id="page-incidents"'));
+  assert.doesNotMatch(overview,/data-go="lab"|모의 실습 보기|detect-practice/);
+  assert.match(html,/<button class="nav-item" data-page="lab">대응 및 검증/);
+  const empty=harness(t,{data:{events:[],detections:[]}});await empty.ready();assert.equal(empty.items.get('detect-detail-link').hidden,true);
+  const filled=harness(t);await filled.ready();assert.equal(filled.items.get('detect-detail-link').hidden,false);
+  filled.click({page:'lab'});assert.equal(filled.run('current()'),'lab');
 });
