@@ -5,7 +5,7 @@ const LabUI = (() => {
   const eligible=location.protocol==='http:'&&['127.0.0.1','localhost'].includes(location.hostname);
   const client=LabApi.create();
   let operator='',authenticated=false,busy=false,unknown=false,generation=0,controller=null,confirmation=null;
-  let currentKey=null,previousKey=null,status={keys:[],activeKeyId:null},audit=[],message='운영자 비밀정보를 직접 입력한 뒤 상태·감사를 조회하세요.';
+  let currentKey=null,previousKey=null,status={keys:[],activeKeyId:null},audit=[],message='운영자 인증 필요';
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function render(){
     $('lab-unavailable').hidden=eligible;$('lab-controls').hidden=!eligible;
@@ -32,7 +32,7 @@ const LabUI = (() => {
       if(kind==='refresh'){
         const snapshot=await client.refresh({operator,signal});if(requestGeneration!==generation)return;
         status=snapshot.status;audit=snapshot.audit.audit;authenticated=true;unknown=false;
-        message='운영자 역할 인증 확인 · 상태·감사 정상 조회';
+        message='인증됨 · 상태·감사 조회 완료';
         if(status.activeKeyId&&!currentKey)message+=' · 키 원문은 재조회할 수 없습니다. 필요한 경우 해당 키를 명시적으로 폐기하고 새로 발급하세요.';
       }else{
         const result=await client.request(kind,{operator,key:token,keyId:confirmation?.keyId,signal});
@@ -46,8 +46,8 @@ const LabUI = (() => {
           message='폐기 응답을 수신했습니다. 기존 키 검증 버튼으로 실제 HTTP 결과를 확인하세요.';
         }else{
           const label=token===previousKey?.token?'기존 테스트 키 접근':token===currentKey?.token?'신규 테스트 키 접근':'입력한 테스트 키 접근';
-          $('lab-verification').textContent=`${label}: HTTP ${result.statusCode} 확인 · 검증 ID ${result.verificationId} · 이 결과는 로컬 테스트 API에서만 검증되었습니다.`;
-          message='실제 HTTP 인증 판정과 감사 저장 응답을 확인했습니다.';
+          $('lab-verification').textContent=`${label}: HTTP ${result.statusCode} 확인 · 검증 ID ${result.verificationId} · 로컬 테스트 API 결과`;
+          message='로컬 HTTP 검증 · 감사 저장 완료';
         }
         confirmation=null;
         const snapshot=await client.refresh({operator,signal});if(requestGeneration!==generation)return;

@@ -34,13 +34,14 @@ function harness(t, { data = dataset(), fetcher, protocol = 'http:', hostname = 
   const items = new Map(), documentListeners = new Map(), windowListeners = new Map(), local = new Map(), calls = [], timers = new Set();
   const element = (id = '') => {
     const classes = new Set(), listeners = new Map();
-    return { id, innerHTML:'', textContent:'', value:'', hidden:false, disabled:false, dataset:{}, listeners,
+    return { id, innerHTML:'', textContent:'', value:'', hidden:false, open:false, disabled:false, dataset:{}, listeners,
       classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x)},
       setAttribute(k,v){this[k]=String(v)},removeAttribute(k){delete this[k]},
       addEventListener(k,fn){listeners.set(k,fn)},click(){listeners.get('click')?.({target:this})},
     };
   };
   const get = id => { assert.ok(htmlIds.has(id), `Missing HTML element: ${id}`);if (!items.has(id)) items.set(id, element(id)); return items.get(id); };
+  for(const id of htmlIds)get(id); // The real document already contains every HTML element, including closed details.
   const pages = ['overview','incidents','lab'].map(id=>get('page-'+id));
   const statuses = ['ALL','OPEN','INVESTIGATING','CONTAINED'].map(status=>Object.assign(element(),{dataset:{status}}));
   const nav = ['overview','incidents','lab'].map(page=>Object.assign(element(),{dataset:{page}}));
@@ -148,7 +149,7 @@ test('leaving a loading page aborts requests and prevents late results replacing
   const pending=h.ready();h.hash('#lab');assert.equal(h.run('dataMode'),'demo');
   assert.ok(h.calls.every(c=>c.options.signal.aborted));waiting.forEach(resolve=>resolve());await pending;
   assert.equal(h.run('live.lastSuccess'),null);assert.equal(h.run('state.incidents.length'),5);
-  assert.match(h.items.get('source-title').textContent,/브라우저 시뮬레이션/);
+  assert.match(h.items.get('source-title').textContent,/로컬 테스트 키.*모의 실습/);
   // A response can finish before the browser delivers a queued hashchange event.
   const delayed=[];const moving=harness(t,{fetcher:path=>new Promise(resolve=>delayed.push(()=>resolve(response(payload(path,dataset())))))});
   const old=moving.ready();moving.ctx.location.hash='#incidents';delayed.forEach(resolve=>resolve());await old;
@@ -190,7 +191,7 @@ test('GitHub Pages, file and non-local origins default to demo without any API r
   for(const [protocol,hostname] of [['file:',''],['https:','ydb721.github.io'],['http:','external.example']]){
     const h=harness(t,{protocol,hostname});assert.equal(h.run('dataMode'),'demo');assert.equal(h.calls.length,0);
     assert.equal(h.items.get('local-source-option').disabled,true);
-    assert.match(h.items.get('connection-status').textContent,/Unavailable/);
+    assert.match(h.items.get('connection-status').textContent,/로컬 조회 불가/);
     h.run('run()');assert.equal(h.run('state.incidents.length'),6);
   }
 });
@@ -237,10 +238,13 @@ test('Detect distinguishes before-query/loading from a successfully queried empt
   await h.ready();
   assert.equal(h.items.get('detect-status').dataset.state,'empty');
   assert.match(h.items.get('detect-status-title').textContent,/수집/);
-  assert.match(h.items.get('detect-status-description').textContent,/안전 상태를 의미하지 않습니다/);
+  assert.equal(h.items.get('detect-status-description').hidden,true);
+  assert.match(h.items.get('detect-disclaimer').textContent,/PC 전체의 안전 여부를 판단할 수 없습니다/);
   for(const id of ['detect-table','event-table','detect-event-list','event-technical'])assert.equal(h.items.get(id).hidden,true,id);
-  assert.equal(h.items.get('event-empty').hidden,false);
-  assert.match(h.items.get('event-empty-title').textContent,/현재 조회 범위에서 수집된 보안 이벤트가 없습니다/);
+  assert.equal(h.items.get('event-empty').hidden,true);
+  assert.equal(h.items.get('local-event-panel').hidden,true);
+  assert.equal(h.items.get('detect-results-panel').hidden,true);
+  assert.match(h.items.get('event-empty-title').textContent,/수집된 이벤트 없음/);
   h.run("live.lastSuccess=null;live.message='';live.status='Unavailable';render()");
   assert.equal(h.items.get('detect-status').dataset.state,'before');
   assert.match(h.items.get('metric-grid').innerHTML,/metric-value">—/);
@@ -252,7 +256,8 @@ test('Detect distinguishes collected events without detections from suspicious r
   assert.equal(normal.items.get('detect-table').hidden,true);
   assert.equal(normal.items.get('event-table').hidden,false);
   assert.match(normal.items.get('detect-event-list').innerHTML,/인증 성공/);
-  assert.match(normal.items.get('detect-status-description').textContent,/탐지되지 않은 위험/);
+  assert.equal(normal.items.get('detect-status-description').hidden,true);
+  assert.match(readFileSync(new URL('../index.html',import.meta.url),'utf8'),/규칙에 해당하지 않는 위험/);
   const suspicious=harness(t);await suspicious.ready();
   assert.equal(suspicious.items.get('detect-status').dataset.state,'findings');
   assert.equal(suspicious.items.get('detect-empty').hidden,true);
@@ -290,4 +295,96 @@ test('Detect remains read-only while source changes and practice navigation pres
   h.hash('#lab');assert.equal(h.items.get('detect-intro').hidden,true);
   assert.equal(h.run('current()'),'lab');assert.equal(h.run('dataMode'),'demo');
   h.run('run()');assert.equal(h.run('state.incidents.length'),6);
+});
+
+
+test('Detect zero/zero has one empty-state message and no meaningless detail action', async t => {
+  const h=harness(t,{data:{events:[],detections:[]}});await h.ready();
+  assert.equal(h.items.get('detect-status').dataset.state,'empty');
+  assert.equal(h.items.get('detect-status-description').hidden,true);
+  for(const id of ['detect-results-panel','local-event-panel','detect-empty','event-empty','detect-detail-link','detect-table','event-table'])assert.equal(h.items.get(id).hidden,true,id);
+  assert.equal(h.items.get('source-banner').hidden,true);
+  assert.equal(h.items.get('detect-source').textContent,'로컬 데이터');
+  assert.match(h.items.get('detect-scope').textContent,/각각 최근 최대 100건.*마지막 성공 확인/);
+  assert.equal(h.items.get('data-source-controls').open,false);
+});
+
+test('Detect keeps detections and evidence navigation when events fall outside the query range', async t => {
+  const data=dataset();data.events=[];const h=harness(t,{data});await h.ready();
+  assert.equal(h.items.get('detect-status').dataset.state,'findings');
+  assert.equal(h.items.get('detect-status').dataset.severity,'MEDIUM');
+  assert.equal(h.items.get('detect-detail-link').hidden,false);
+  assert.equal(h.items.get('detect-results-panel').hidden,false);
+  assert.equal(h.items.get('local-event-panel').hidden,true);
+  const id=h.run('live.detections[0].detectionId');h.click({detection:id});await h.ready();
+  assert.match(h.items.get('incident-detail').innerHTML,/현재 조회 범위에 상세 기록이 없습니다/);
+  assert.match(h.items.get('incident-detail').innerHTML,/KG-R00/);
+});
+
+test('Query settings disclosure preserves choice across render, theme, refresh and navigation without extra traffic', async t => {
+  const h=harness(t);await h.ready();const settings=h.items.get('data-source-controls'),before=h.calls.length;
+  settings.open=true;h.run("theme('dark');render()");
+  assert.equal(settings.open,true);assert.equal(h.calls.length,before);
+  h.hash('#incidents');await h.ready();assert.equal(settings.open,true);
+  assert.equal(h.items.get('source-banner').hidden,false);
+  h.hash('#overview');await h.ready();assert.equal(settings.open,true);
+  assert.equal(h.items.get('source-banner').hidden,true);
+  assert.equal(h.ctx.document.body.dataset.theme,'dark');
+  settings.open=false;h.run('render()');assert.equal(settings.open,false);
+  await h.run('refreshLocal()');assert.equal(settings.open,false);
+  assert.equal(h.ctx.document.body.dataset.theme,'dark');
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<details id="data-source-controls"[^>]*><summary>조회 설정<\/summary>/);
+  const settingsHtml=html.slice(html.indexOf('<details id="data-source-controls"'),html.indexOf('<section id="page-overview"'));
+  for(const id of ['data-source','refresh-local','source-diagnostics','detect-scope','detect-disclaimer','detect-technical'])assert.ok(settingsHtml.includes(`id="${id}"`),id);
+});
+
+test('Errors and stale status remain visible with query settings collapsed; demo provenance stays distinct', async t => {
+  let fail=false;const data=dataset();const h=harness(t,{fetcher:path=>fail?response({},503):response(payload(path,data))});await h.ready();
+  fail=true;await h.run('refreshLocal()');
+  assert.equal(h.items.get('data-source-controls').open,false);
+  assert.equal(h.items.get('detect-intro').hidden,false);
+  assert.equal(h.items.get('detect-status').dataset.state,'stale');
+  assert.match(h.items.get('detect-status-description').textContent,/최신 상태가 아닙니다/);
+  h.change('data-source','demo');
+  assert.equal(h.items.get('detect-source').textContent,'모의 데이터');
+  assert.equal(h.items.get('detect-status').dataset.state,'simulation');
+  assert.equal(h.items.get('detect-detail-link').hidden,false);
+  assert.match(h.items.get('queue-body').innerHTML,/교육용 합성 사고/);
+  const normal=harness(t,{data:dataset(0,true)});await normal.ready();
+  assert.equal(normal.items.get('detect-results-panel').hidden,true);
+  assert.equal(normal.items.get('detect-detail-link').hidden,true);
+  assert.equal(normal.items.get('local-event-panel').hidden,false);
+  assert.equal(normal.items.get('detect-status').dataset.state,'events');
+});
+
+
+test('Concise UI keeps empty/normal results distinct from safety claims and preserves limitations in detail', async t => {
+  const h=harness(t,{data:{events:[],detections:[]}});await h.ready();
+  assert.equal(h.items.get('detect-status-title').textContent,'수집된 이벤트 없음');
+  assert.equal(h.items.get('connection-status').textContent,'연결됨 · 기록 없음');
+  assert.equal(h.items.get('detect-status-description').hidden,true);
+  assert.equal(h.items.get('source-description').hidden,true);
+  assert.equal(h.items.get('detect-results-panel').hidden,true);
+  const normal=harness(t,{data:dataset(0,true)});await normal.ready();
+  assert.equal(normal.items.get('detect-status-title').textContent,'조회된 탐지 결과 없음');
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<details id="ui-help"[^>]*><summary>도움말<\/summary>/);
+  assert.match(html,/모의 실습은 브라우저의 합성 데이터만 변경/);
+  assert.match(html,/키를 실제로 발급·폐기하고 HTTP 인증을 검증/);
+  assert.match(html,/규칙에 해당하지 않는 위험/);
+  assert.match(h.items.get('detect-disclaimer').textContent,/PC 전체의 안전 여부/);
+});
+
+test('Concise source labels distinguish local key management from browser simulation', async t => {
+  const h=harness(t);await h.ready();
+  assert.equal(h.items.get('source-title').textContent,'로컬 데이터');
+  h.change('data-source','demo');
+  assert.equal(h.items.get('source-title').textContent,'모의 실습');
+  assert.equal(h.items.get('detect-source').textContent,'모의 데이터');
+  h.hash('#lab');
+  assert.equal(h.items.get('source-title').textContent,'로컬 테스트 키 · 모의 실습');
+  h.run("run();change(state.last,'CONTAINED')");
+  assert.match(h.items.get('lab-output').innerHTML,/모의 대응 기록 완료.*미검증/);
+  assert.equal(h.run('state.audit.length'),7);
 });

@@ -87,7 +87,7 @@ test('icon-only theme control persists selection and legacy hashes map to the un
  assert.equal(h.items.get('theme-toggle')['aria-label'],'다크 모드로 전환');
  h.run("theme('dark')");assert.equal(h.ctx.document.body.dataset.theme,'dark');assert.equal(h.items.get('theme-toggle')['aria-label'],'라이트 모드로 전환');assert.equal(h.local.get('keyguard-xdr-theme-v0.1'),'dark');
  const restored=harness('dark');assert.equal(restored.ctx.document.body.dataset.theme,'dark');assert.equal(restored.items.get('theme-label').textContent,'라이트 모드');
- for(const [hash,location] of [['#rules','Investigate'],['#assets','Investigate'],['#audit','Respond & Verify'],['#unknown','Detect']]){const legacy=harness(null,hash);assert.equal(legacy.items.get('top-location').textContent,location)}
+ for(const [hash,location] of [['#rules','사고 분석'],['#assets','사고 분석'],['#audit','대응 및 검증'],['#unknown','보안 현황']]){const legacy=harness(null,hash);assert.equal(legacy.items.get('top-location').textContent,location)}
 });
 
 test('same-origin read-only API safety and minimal navigation contracts remain explicit',async()=>{
