@@ -227,3 +227,67 @@ test('VM-rendered UI integrates with real localhost API and never changes persis
   assert.match(h.items.get('queue-body').innerHTML,/KG-R001/);assert.match(h.items.get('queue-body').innerHTML,/KG-R002/);
   await h.run('refreshLocal()');assert.deepEqual(await readFile(file),before);
 });
+
+// Detect presentation checks complement the existing API/security contracts above.
+test('Detect distinguishes before-query/loading from a successfully queried empty range', async t => {
+  const h=harness(t,{data:{events:[],detections:[]}});
+  assert.equal(h.items.get('detect-status').dataset.state,'loading');
+  assert.match(h.items.get('metric-grid').innerHTML,/metric-value">—/);
+  assert.equal(h.items.get('detect-table').hidden,true);
+  await h.ready();
+  assert.equal(h.items.get('detect-status').dataset.state,'empty');
+  assert.match(h.items.get('detect-status-title').textContent,/수집/);
+  assert.match(h.items.get('detect-status-description').textContent,/안전 상태를 의미하지 않습니다/);
+  for(const id of ['detect-table','event-table','detect-event-list','event-technical'])assert.equal(h.items.get(id).hidden,true,id);
+  assert.equal(h.items.get('event-empty').hidden,false);
+  assert.match(h.items.get('event-empty-title').textContent,/현재 조회 범위에서 수집된 보안 이벤트가 없습니다/);
+  h.run("live.lastSuccess=null;live.message='';live.status='Unavailable';render()");
+  assert.equal(h.items.get('detect-status').dataset.state,'before');
+  assert.match(h.items.get('metric-grid').innerHTML,/metric-value">—/);
+});
+
+test('Detect distinguishes collected events without detections from suspicious rule results', async t => {
+  const normal=harness(t,{data:dataset(0,true)});await normal.ready();
+  assert.equal(normal.items.get('detect-status').dataset.state,'events');
+  assert.equal(normal.items.get('detect-table').hidden,true);
+  assert.equal(normal.items.get('event-table').hidden,false);
+  assert.match(normal.items.get('detect-event-list').innerHTML,/인증 성공/);
+  assert.match(normal.items.get('detect-status-description').textContent,/탐지되지 않은 위험/);
+  const suspicious=harness(t);await suspicious.ready();
+  assert.equal(suspicious.items.get('detect-status').dataset.state,'findings');
+  assert.equal(suspicious.items.get('detect-empty').hidden,true);
+  assert.equal(suspicious.items.get('detect-table').hidden,false);
+  assert.match(suspicious.items.get('queue-body').innerHTML,/짧은 시간에 인증 실패/);
+  assert.match(suspicious.items.get('detect-status-description').textContent,/의심 신호/);
+  assert.match(suspicious.items.get('detect-scope').textContent,/각각 최근 최대 100건.*전체 누적 건수 아님.*마지막 성공 확인/);
+});
+
+test('Detect explains connection/invalid errors and stale snapshots without inventing results', async t => {
+  const network=harness(t,{fetcher:()=>{throw Error('private-secret')}});await network.ready();
+  assert.equal(network.items.get('detect-status').dataset.state,'error');
+  assert.match(network.items.get('detect-status-description').textContent,/서버가 실행 중인지 확인/);
+  assert.doesNotMatch(network.items.get('detect-status-description').textContent,/private-secret/);
+  const invalid=harness(t,{fetcher:()=>response({bad:true})});await invalid.ready();
+  assert.equal(invalid.items.get('detect-status').dataset.state,'invalid');
+  let fail=false;const data=dataset();const h=harness(t,{fetcher:path=>fail?response({},503):response(payload(path,data))});await h.ready();
+  const previous=h.run('JSON.stringify([live.events,live.detections,live.lastSuccess])');fail=true;await h.run('refreshLocal()');
+  assert.equal(h.items.get('detect-status').dataset.state,'stale');
+  assert.match(h.items.get('detect-status-title').textContent,/마지막 성공 조회 결과만/);
+  assert.match(h.items.get('detect-status-description').textContent,/저장소 오류.*최신 상태가 아닙니다/);
+  assert.equal(h.run('JSON.stringify([live.events,live.detections,live.lastSuccess])'),previous);
+  assert.equal(h.items.get('detect-table').hidden,false);
+});
+
+test('Detect remains read-only while source changes and practice navigation preserve simulation', async t => {
+  const h=harness(t);await h.ready();const before=h.calls.length;
+  h.run('detectPresentation();detectPresentation()');assert.equal(h.calls.length,before);
+  assert.equal(h.items.get('source-diagnostics').open,false);
+  h.items.get('source-diagnostics').open=true;h.run('render()');
+  assert.equal(h.items.get('source-diagnostics').open,true);
+  h.change('data-source','demo');assert.equal(h.items.get('detect-status').dataset.state,'simulation');
+  assert.match(h.items.get('queue-body').innerHTML,/교육용 합성 사고/);
+  assert.equal(h.run('state.incidents.length'),5);assert.equal(h.run('state.audit.length'),4);
+  h.hash('#lab');assert.equal(h.items.get('detect-intro').hidden,true);
+  assert.equal(h.run('current()'),'lab');assert.equal(h.run('dataMode'),'demo');
+  h.run('run()');assert.equal(h.run('state.incidents.length'),6);
+});
