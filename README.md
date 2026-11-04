@@ -54,3 +54,23 @@ git status -sb
 ```
 
 v0.5.0 기준 자동 테스트는 93개입니다. [프로젝트 범위](docs/PROJECT_SCOPE.md), [UI 명세](docs/UI_SPEC.md), [로드맵](docs/ROADMAP.md), [변경 이력](CHANGELOG.md)을 참고하세요.
+
+## 이벤트 저장소와 장애 정책
+
+이벤트는 `data/events.jsonl`에 JSONL로 누적하며 각 행은 `eventId`, ISO 8601 `timestamp`, `source`, `eventType`, `method`, `path`, `statusCode`, `outcome`, `assetId`를 가집니다. UUID 중복, UTF-8/JSONL 형식, 필수 필드, 파일 크기를 검사합니다. 최대 크기는 5 MiB(5,242,880 bytes)이며, 파일 손상·I/O 오류·용량 초과는 503으로 실패하고 기존 바이트를 보존합니다. 저장 실패를 200/401 성공으로 처리하지 않습니다.
+
+## 탐지와 근거
+
+KG-R001은 같은 자산의 60초 내 실패 5건, KG-R002는 같은 자산의 120초 내 실패 3건 이상 뒤 엄격히 나중 시각의 성공을 MEDIUM 의심 신호로 만듭니다. 사용한 근거는 규칙 안에서 소비해 중복 경고를 억제합니다. 탐지 결과에는 `detectionId`, `ruleId`, `evidenceEventIds`, `analysisWindow`, `reason`, `observedSources`가 포함됩니다. R002는 `successEventId`도 연결합니다. 규칙은 UTC 이벤트 시각을 기준으로 결정적으로 판정하며 침해 확정이나 동일 인물 식별을 주장하지 않습니다.
+
+KG-R003은 동일 자산의 합성 Cloud/Endpoint 이상 이벤트를 300초 내 연결하는 별도 Fixture 검증입니다. 실제 JSONL이나 `/api/detections` 응답에는 섞이지 않습니다.
+
+## 보안 경계
+
+서버는 localhost Host/Origin만 허용하고, 허용되지 않은 경로·메서드는 거부합니다. CORS 전체 허용은 하지 않으며 응답에는 `Cache-Control: no-store`와 same-origin CSP를 적용합니다. 클라이언트 로컬 조회는 GET, `credentials: omit`, `cache: no-store`, `mode: same-origin`, `redirect: error`만 사용합니다. API 오류는 빈 결과로 위장하지 않고, 원본 경로·스택·토큰은 UI와 응답에 노출하지 않습니다.
+
+PowerShell 예시의 환경변수는 서버 종료 뒤 현재 세션에서 정리할 수 있습니다.
+
+```powershell
+Remove-Item Env:KEYGUARD_OPERATOR_SECRET -ErrorAction SilentlyContinue
+```
