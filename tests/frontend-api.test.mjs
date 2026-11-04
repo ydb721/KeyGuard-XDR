@@ -88,8 +88,9 @@ test('R002 detail links success ID and preceding failure evidence', async t => {
   const d=h.run("live.detections.find(d=>d.ruleId==='KG-R002')");
   h.click({detection:d.detectionId});await h.ready();
   const html=h.items.get('incident-detail').innerHTML;
-  assert.ok(html.includes(d.successEventId));assert.match(html,/SUCCESS/);assert.match(html,/HTTP 200/);
-  assert.match(html,/HTTP 401/);assert.match(html,/120초 구간/);assert.match(html,/실패 횟수/);
+  assert.ok(html.includes(d.successEventId));assert.match(html,/인증 성공/);assert.match(html,/HTTP 200/);
+  assert.match(html,/HTTP 401/);assert.match(html,/120초 분석 구간/);assert.match(html,/실패 횟수/);
+  assert.match(html,/사고 ID/);assert.match(html,/탐지 근거/);assert.match(html,/상세 정보/);
   for(const id of d.evidenceEventIds)assert.ok(html.includes(id));
 });
 
@@ -481,6 +482,8 @@ test('Investigate uses Detect Korean incident names while preserving every origi
     assert.ok(h.items.get('incident-body').innerHTML.includes(`<strong class="main-cell">${name}</strong>`));
     const detail=h.items.get('incident-detail').innerHTML;
     assert.ok(detail.includes(`<h2>${name}</h2>`));
+    assert.match(detail,/사고 ID/);assert.match(detail,/탐지 근거/);assert.match(detail,/상세 정보/);
+    assert.match(detail,/브라우저 모의 데이터/);assert.ok(!detail.includes('CASE FILE'));
     for(const value of [record.title,record.id,record.rule,record.asset,record.ruleName])assert.ok(detail.includes(value),value);
   }
   assert.equal(h.run('JSON.stringify(state.incidents)'),original);
