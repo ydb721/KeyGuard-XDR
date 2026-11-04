@@ -72,7 +72,8 @@ test('investigation and response mutate state once and append observable audit r
  h.run(`change('${id}','CONTAINED')`);
  assert.equal(h.run('state.audit.length'),8);
  assert.match(h.items.get('lab-output').innerHTML,/실제 API 요청 차단 여부: 미검증/);
- assert.match(h.items.get('audit-body').innerHTML,/RESPONSE/);
+ assert.match(h.items.get('audit-body').innerHTML,/class="event-type response">대응<\/span>/);
+ assert.equal(h.run("state.audit[0].type"),'RESPONSE');
 });
 
 test('reset restores the documented seed data',()=>{

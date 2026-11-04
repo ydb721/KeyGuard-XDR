@@ -515,3 +515,22 @@ test('Investigate removes only the heading shortcut and retains all selected-inc
   h.click({contain:'KG-0214'});assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').status"),'CONTAINED');
   h.click({go:'lab'});assert.equal(h.run('current()'),'lab');
 });
+
+
+test('Simulation audit classification is Korean presentation only; original audit rows and CSV remain unchanged', async t => {
+  const h=harness(t);await h.ready();h.change('data-source','demo');
+  const original=h.run('JSON.stringify(state.audit)');h.run('audit()');
+  assert.equal(h.run('JSON.stringify(state.audit)'),original);
+  for(const [type,label] of [['DETECTION','탐지'],['RESPONSE','대응']])assert.ok(h.items.get('audit-body').innerHTML.includes(`class="event-type ${type.toLowerCase()}">${label}</span>`));
+  h.run("run();change(state.last,'INVESTIGATING');change(state.last,'CONTAINED')");
+  const beforeRender=h.run('JSON.stringify(state.audit)');h.run('audit()');
+  assert.equal(h.run('JSON.stringify(state.audit)'),beforeRender);
+  for(const [type,label] of [['DETECTION','탐지'],['RESPONSE','대응'],['TRIAGE','조사'],['SIMULATION','모의 실습']]){
+    assert.ok(h.items.get('audit-body').innerHTML.includes(`class="event-type ${type.toLowerCase()}">${label}</span>`));
+    assert.ok(h.run(`state.audit.some(x=>x.type==='${type}')`));
+  }
+  const blobs=[];h.ctx.URL.createObjectURL=blob=>{blobs.push(blob);return 'blob:audit-test'};
+  h.items.get('export-csv').click();assert.equal(blobs.length,1);const csv=await blobs[0].text();
+  for(const type of ['DETECTION','RESPONSE','TRIAGE','SIMULATION'])assert.ok(csv.includes(`"${type}"`));
+  assert.equal(h.run('JSON.stringify(state.audit)'),beforeRender);
+});
