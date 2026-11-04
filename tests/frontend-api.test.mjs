@@ -34,14 +34,14 @@ function harness(t, { data = dataset(), fetcher, protocol = 'http:', hostname = 
   const items = new Map(), documentListeners = new Map(), windowListeners = new Map(), local = new Map(), calls = [], timers = new Set();
   const element = (id = '') => {
     const classes = new Set(), listeners = new Map();
-    return { id, innerHTML:'', textContent:'', value:'', hidden:false, open:false, disabled:false, dataset:{}, listeners,
+    return { id, innerHTML:'', textContent:'', value:'', hidden:false, disabled:false, dataset:{}, listeners,
       classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x)},
       setAttribute(k,v){this[k]=String(v)},removeAttribute(k){delete this[k]},
       addEventListener(k,fn){listeners.set(k,fn)},click(){listeners.get('click')?.({target:this})},
     };
   };
   const get = id => { assert.ok(htmlIds.has(id), `Missing HTML element: ${id}`);if (!items.has(id)) items.set(id, element(id)); return items.get(id); };
-  for(const id of htmlIds)get(id); // The real document already contains every HTML element, including closed details.
+  for(const id of htmlIds)get(id); // The real document already contains every HTML element, including query controls.
   const pages = ['overview','incidents','lab'].map(id=>get('page-'+id));
   const statuses = ['ALL','OPEN','INVESTIGATING','CONTAINED'].map(status=>Object.assign(element(),{dataset:{status}}));
   const nav = ['overview','incidents','lab'].map(page=>Object.assign(element(),{dataset:{page}}));
@@ -242,8 +242,8 @@ test('Detect distinguishes before-query/loading from a successfully queried empt
   assert.equal(h.items.get('detect-status').dataset.state,'empty');
   assert.match(h.items.get('detect-status-title').textContent,/수집/);
   assert.equal(h.items.get('detect-status-description').hidden,true);
-  assert.match(h.items.get('detect-disclaimer').textContent,/PC 전체의 안전 여부를 판단할 수 없습니다/);
-  for(const id of ['detect-table','event-table','detect-event-list','event-technical'])assert.equal(h.items.get(id).hidden,true,id);
+  assert.match(readFileSync(new URL('../README.md',import.meta.url),'utf8'),/PC 전체의 안전 여부를 판단할 수 없습니다/);
+  for(const id of ['detect-table','event-table','event-technical'])assert.equal(h.items.get(id).hidden,true,id);
   assert.equal(h.items.get('event-empty').hidden,true);
   assert.equal(h.items.get('local-event-panel').hidden,true);
   assert.equal(h.items.get('detect-results-panel').hidden,true);
@@ -258,9 +258,9 @@ test('Detect distinguishes collected events without detections from suspicious r
   assert.equal(normal.items.get('detect-status').dataset.state,'events');
   assert.equal(normal.items.get('detect-table').hidden,true);
   assert.equal(normal.items.get('event-table').hidden,false);
-  assert.match(normal.items.get('detect-event-list').innerHTML,/인증 성공/);
+  assert.match(normal.items.get('local-event-body').innerHTML,/인증 성공/);
   assert.equal(normal.items.get('detect-status-description').hidden,true);
-  assert.match(readFileSync(new URL('../index.html',import.meta.url),'utf8'),/규칙에 해당하지 않는 위험/);
+  assert.match(readFileSync(new URL('../README.md',import.meta.url),'utf8'),/규칙에 해당하지 않는 위험/);
   const suspicious=harness(t);await suspicious.ready();
   assert.equal(suspicious.items.get('detect-status').dataset.state,'findings');
   assert.equal(suspicious.items.get('detect-empty').hidden,true);
@@ -289,9 +289,8 @@ test('Detect explains connection/invalid errors and stale snapshots without inve
 test('Detect remains read-only while source changes and practice navigation preserve simulation', async t => {
   const h=harness(t);await h.ready();const before=h.calls.length;
   h.run('detectPresentation();detectPresentation()');assert.equal(h.calls.length,before);
-  assert.equal(h.items.get('source-diagnostics').open,false);
-  h.items.get('source-diagnostics').open=true;h.run('render()');
-  assert.equal(h.items.get('source-diagnostics').open,true);
+  assert.equal(h.items.get('data-source-controls').hidden,false);
+  h.run('render()');assert.equal(h.items.get('refresh-local').hidden,false);
   h.change('data-source','demo');assert.equal(h.items.get('detect-status').dataset.state,'simulation');
   assert.match(h.items.get('queue-body').innerHTML,/교육용 합성 사고/);
   assert.equal(h.run('state.incidents.length'),5);assert.equal(h.run('state.audit.length'),4);
@@ -309,7 +308,7 @@ test('Detect zero/zero has one empty-state message and no meaningless detail act
   assert.equal(h.items.get('source-banner').hidden,true);
   assert.equal(h.items.get('detect-source').textContent,'로컬 데이터');
   assert.match(h.items.get('detect-scope').textContent,/각각 최근 최대 100건.*마지막 성공 확인/);
-  assert.equal(h.items.get('data-source-controls').open,false);
+  assert.equal(h.items.get('data-source-controls').hidden,false);
 });
 
 test('Detect keeps detections and evidence navigation when events fall outside the query range', async t => {
@@ -324,28 +323,27 @@ test('Detect keeps detections and evidence navigation when events fall outside t
   assert.match(h.items.get('incident-detail').innerHTML,/KG-R00/);
 });
 
-test('Query settings disclosure preserves choice across render, theme, refresh and navigation without extra traffic', async t => {
-  const h=harness(t);await h.ready();const settings=h.items.get('data-source-controls'),before=h.calls.length;
-  settings.open=true;h.run("theme('dark');render()");
-  assert.equal(settings.open,true);assert.equal(h.calls.length,before);
-  h.hash('#incidents');await h.ready();assert.equal(settings.open,true);
+test('Direct query controls preserve theme, refresh and navigation without extra traffic', async t => {
+  const h=harness(t);await h.ready();const controls=h.items.get('data-source-controls'),before=h.calls.length;
+  h.run("theme('dark');render()");
+  assert.equal(controls.hidden,false);assert.equal(h.items.get('refresh-local').hidden,false);assert.equal(h.calls.length,before);
+  h.hash('#incidents');await h.ready();assert.equal(controls.hidden,false);
   assert.equal(h.items.get('source-banner').hidden,false);
-  h.hash('#overview');await h.ready();assert.equal(settings.open,true);
+  h.hash('#overview');await h.ready();assert.equal(controls.hidden,false);
   assert.equal(h.items.get('source-banner').hidden,true);
   assert.equal(h.ctx.document.body.dataset.theme,'dark');
-  settings.open=false;h.run('render()');assert.equal(settings.open,false);
-  await h.run('refreshLocal()');assert.equal(settings.open,false);
+  await h.run('refreshLocal()');assert.equal(controls.hidden,false);
   assert.equal(h.ctx.document.body.dataset.theme,'dark');
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  assert.match(html,/<details id="data-source-controls"[^>]*><summary>조회 설정<\/summary>/);
-  const settingsHtml=html.slice(html.indexOf('<details id="data-source-controls"'),html.indexOf('<section id="page-overview"'));
-  for(const id of ['data-source','refresh-local','source-diagnostics','detect-scope','detect-disclaimer','detect-technical'])assert.ok(settingsHtml.includes(`id="${id}"`),id);
+  assert.match(html,/<div id="data-source-controls" class="source-controls">/);
+  const toolbar=html.slice(html.indexOf('<div id="data-source-controls"'),html.indexOf('<section id="page-overview"'));
+  for(const id of ['data-source','refresh-local','connection-status','detect-scope'])assert.ok(toolbar.includes(`id="${id}"`),id);
 });
 
-test('Errors and stale status remain visible with query settings collapsed; demo provenance stays distinct', async t => {
+test('Errors and stale status remain visible beside direct query controls; demo provenance stays distinct', async t => {
   let fail=false;const data=dataset();const h=harness(t,{fetcher:path=>fail?response({},503):response(payload(path,data))});await h.ready();
   fail=true;await h.run('refreshLocal()');
-  assert.equal(h.items.get('data-source-controls').open,false);
+  assert.equal(h.items.get('data-source-controls').hidden,false);
   assert.equal(h.items.get('detect-intro').hidden,false);
   assert.equal(h.items.get('detect-status').dataset.state,'stale');
   assert.match(h.items.get('detect-status-description').textContent,/최신 상태가 아닙니다/);
@@ -372,11 +370,12 @@ test('Concise UI keeps empty/normal results distinct from safety claims and pres
   const normal=harness(t,{data:dataset(0,true)});await normal.ready();
   assert.equal(normal.items.get('detect-status-title').textContent,'조회된 탐지 결과 없음');
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  assert.match(html,/<details id="ui-help"[^>]*><summary>도움말<\/summary>/);
-  assert.match(html,/모의 실습은 브라우저의 합성 데이터만 변경/);
-  assert.match(html,/키를 실제로 발급·폐기하고 HTTP 인증을 검증/);
-  assert.match(html,/규칙에 해당하지 않는 위험/);
-  assert.match(h.items.get('detect-disclaimer').textContent,/PC 전체의 안전 여부/);
+  assert.doesNotMatch(html,/<(?:details|summary)\b/);
+  const documentation=readFileSync(new URL('../README.md',import.meta.url),'utf8');
+  assert.match(documentation,/모의 실습은 브라우저의 합성 데이터만 변경/);
+  assert.match(documentation,/키를 실제로 발급·폐기하고 HTTP 인증을 검증/);
+  assert.match(documentation,/규칙에 해당하지 않는 위험/);
+  assert.match(documentation,/PC 전체의 안전 여부/);
 });
 
 test('Concise source labels distinguish local key management from browser simulation', async t => {
@@ -450,4 +449,21 @@ test('Detect shortcut is analysis-only and conditional; sidebar Respond navigati
   const empty=harness(t,{data:{events:[],detections:[]}});await empty.ready();assert.equal(empty.items.get('detect-detail-link').hidden,true);
   const filled=harness(t);await filled.ready();assert.equal(filled.items.get('detect-detail-link').hidden,false);
   filled.click({page:'lab'});assert.equal(filled.run('current()'),'lab');
+});
+
+
+test('All application disclosure controls are removed while original events and key confirmations remain directly available', async t => {
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/<(?:details|summary)\b|id="ui-help"|detect-event-list/);
+  assert.doesNotMatch(app,/\.open\b/);
+  assert.doesNotMatch(css,/>summary|\[open\]|query-settings-content|detect-details|ui-help/);
+  const data=dataset();const h=harness(t,{data});await h.ready();
+  for(const id of ['data-source-controls','refresh-local','event-table','event-technical'])assert.equal(h.items.get(id).hidden,false,id);
+  const raw=h.items.get('local-event-body').innerHTML;
+  for(const value of Object.values(data.events[0]))assert.ok(raw.includes(String(value)),String(value));
+  assert.match(raw,/인증 성공/);assert.match(raw,/HTTP 200/);assert.match(raw,/HTTP 401/);
+  assert.match(html,/<div id="lab-confirm"[^>]*hidden>/);
+  assert.ok(html.includes('id="lab-confirm-yes"'));assert.ok(html.includes('id="lab-confirm-no"'));
+  h.hash('#lab');assert.equal(h.items.get('data-source-controls').hidden,true);
 });

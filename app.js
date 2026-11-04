@@ -59,12 +59,12 @@ function detectPresentation(){
  $('detect-intro').hidden=!overview;$('source-banner').hidden=overview;
  $('detect-source').textContent=local?'로컬 데이터':'모의 데이터';
  // Labels explain the validated snapshot without changing requests or cancellation state.
- let kind='before',label='조회 전',title='아직 보안 기록을 조회하지 않았습니다.',description='조회 설정에서 새로고침할 수 있습니다.';
+ let kind='before',label='조회 전',title='아직 보안 기록을 조회하지 않았습니다.',description='새로고침으로 조회할 수 있습니다.';
  if(!local){kind='simulation';label='모의 실습';title='합성 사고 기록';description=''}
  else if(live.status==='Loading'){kind='loading';label='조회 중';title='보안 기록 조회 중';description=ready?'이전 성공 결과를 표시하고 있습니다. 최신 결과가 아닙니다.':''}
- else if(live.stale&&ready){kind='stale';label='이전 조회 결과';title='마지막 성공 조회 결과만 표시합니다.';description=`${live.message||'최신 조회가 완료되지 않았습니다.'} 최신 상태가 아닙니다. 조회 설정에서 다시 조회할 수 있습니다.`}
- else if(live.status==='Invalid Response'){kind='invalid';label='응답 오류';title='서버 응답 형식이 올바르지 않습니다.';description='호환되는 로컬 서버인지 확인한 뒤 조회 설정에서 다시 조회할 수 있습니다.'}
- else if(['Error','Unavailable'].includes(live.status)&&live.message){kind='error';label='연결 실패';title='보안 기록을 조회하지 못했습니다.';description=live.message.includes('네트워크')?'로컬 서버가 실행 중인지 확인한 뒤 조회 설정에서 다시 조회해 주세요.':live.message}
+ else if(live.stale&&ready){kind='stale';label='이전 조회 결과';title='마지막 성공 조회 결과만 표시합니다.';description=`${live.message||'최신 조회가 완료되지 않았습니다.'} 최신 상태가 아닙니다. 새로고침으로 다시 조회할 수 있습니다.`}
+ else if(live.status==='Invalid Response'){kind='invalid';label='응답 오류';title='서버 응답 형식이 올바르지 않습니다.';description='호환되는 로컬 서버인지 확인한 뒤 새로고침으로 다시 조회할 수 있습니다.'}
+ else if(['Error','Unavailable'].includes(live.status)&&live.message){kind='error';label='연결 실패';title='보안 기록을 조회하지 못했습니다.';description=live.message.includes('네트워크')?'로컬 서버가 실행 중인지 확인한 뒤 새로고침해 주세요.':live.message}
  else if(ready){
   kind=hasDetections?'findings':hasEvents?'events':'empty';label=hasDetections?'확인 필요':'정상 연결';
   title=hasDetections?`탐지 결과 ${live.detections.length}건`:hasEvents?'조회된 탐지 결과 없음':'수집된 이벤트 없음';
@@ -75,19 +75,17 @@ function detectPresentation(){
  $('detect-status-label').textContent=label;$('detect-status-title').textContent=title;
  $('detect-status-description').textContent=description;$('detect-status-description').hidden=!description;
  $('detect-scope').textContent=local?`이벤트와 탐지 각각 최근 최대 100건 · 전체 누적 건수 아님 · ${ready?`마지막 성공 확인: ${new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'medium'}).format(new Date(live.lastSuccess))} (한국 시간)`:'마지막 성공 확인: 없음'}`:'출처: 브라우저 메모리 · 교육용 합성 사고 · 로컬 API 조회 결과와 별도';
- for(const id of ['detect-scope','detect-disclaimer','detect-technical'])$(id).hidden=!overview;
+ $('detect-scope').hidden=!overview;
+ $('detect-technical').hidden=!overview||(local&&!hasDetections&&!hasEvents);
+ $('connection-status').hidden=overview;
  $('last-loaded').hidden=overview;
- $('detect-disclaimer').textContent='이 결과만으로 PC 전체의 안전 여부를 판단할 수 없습니다.';
  // A zero/zero snapshot is explained once, above. Evidence outside the event range never hides detections.
  $('detect-results-panel').hidden=!hasDetections;$('detect-detail-link').hidden=!hasDetections;
  $('detect-table').hidden=!hasDetections;$('detect-empty').hidden=true;
  $('detect-empty-title').textContent='조회된 탐지 결과 없음';$('detect-empty-description').textContent='';
  $('local-event-panel').hidden=!hasEvents;$('event-empty').hidden=true;
- $('detect-event-list').hidden=!hasEvents;$('event-technical').hidden=!hasEvents;$('event-table').hidden=!hasEvents;
+ $('event-technical').hidden=!hasEvents;$('event-table').hidden=!hasEvents;
  $('event-empty-title').textContent='수집된 이벤트 없음';
- $('detect-event-list').innerHTML=hasEvents?live.events.slice(0,10).map(e=>`<li><div><strong>${e.statusCode===401?'인증 실패':'인증 성공'}</strong><small>대상: ${esc(e.assetId)}</small></div><time datetime="${esc(e.timestamp)}">${fmt(e.timestamp)} (한국 시간)</time></li>`).join(''):'';
- // Native details retains the user's open/closed choice across rendering and navigation.
- if(!overview)$('source-diagnostics').open=true;
 }
 function localOverview(){
  const ready=Boolean(live.lastSuccess),events=live.events,ds=live.detections;
@@ -95,7 +93,7 @@ function localOverview(){
  $('rule-summary').textContent=ready?['KG-R001','KG-R002'].map(rule=>`${rule}: ${ds.filter(d=>d.ruleId===rule).length}건`).join(' · '):'규칙별 결과: 아직 정상 조회하지 않았습니다.';
  $('queue-count').textContent=ready?`조회 ${ds.length}건`:'조회 미완료';
  $('queue-body').innerHTML=ds.map(d=>localRow(d,true)).join('')||`<tr><td colspan="4" class="empty-row">${ready?'조회 범위에 탐지 결과가 없습니다.':'조회가 완료되지 않았습니다. 연결 상태를 확인하세요.'}</td></tr>`;
- $('local-event-body').innerHTML=events.slice(0,10).map(e=>`<tr><td class="mono" data-label="이벤트 ID">${esc(e.eventId)}</td><td data-label="유형">${esc(e.eventType)}</td><td data-label="상태 코드">${e.statusCode}</td><td data-label="시각 (UTC)">${esc(e.timestamp)}</td></tr>`).join('')||`<tr><td colspan="4" class="empty-row">${ready?'조회된 보안 이벤트가 없습니다.':'조회 미완료'}</td></tr>`;
+ $('local-event-body').innerHTML=events.slice(0,10).map(e=>`<tr><td class="mono" data-label="이벤트 / 출처">${esc(e.eventId)}<small class="table-secondary">${esc(e.source)}</small></td><td data-label="결과 / 요청"><strong>${e.statusCode===401?'인증 실패':'인증 성공'}</strong><small class="table-secondary">${esc(e.method)} ${esc(e.path)}</small><small class="table-secondary">${esc(e.eventType)} · ${esc(e.outcome)}</small></td><td data-label="상태 코드">HTTP ${e.statusCode}</td><td data-label="시각 / 자산">${esc(e.timestamp)}<small class="table-secondary">${esc(e.assetId)}</small></td></tr>`).join('')||`<tr><td colspan="4" class="empty-row">${ready?'조회된 보안 이벤트가 없습니다.':'조회 미완료'}</td></tr>`;
  $('local-event-count').textContent=ready?`최근 ${Math.min(events.length,10)}건 표시 / 조회 ${events.length}건`:'조회 미완료';
 }
 function localIncidents(){
@@ -114,7 +112,7 @@ function localDetail(){
   const e=live.events.find(e=>e.eventId===id);const success=id===d.successEventId;
   return `<li><span class="evidence-icon">${success?'SUCCESS':'EVENT'}</span><div class="evidence-copy"><strong class="mono">${esc(id)}</strong>${e?`<p>${esc(e.eventType)} · HTTP ${e.statusCode} · ${esc(e.timestamp)}</p>`:'<p>근거 이벤트 ID는 확인되었지만 현재 조회 범위에 상세 기록이 없습니다.</p>'}</div></li>`;
  }).join('');
- $('incident-detail').innerHTML=`<div class="detail-header"><div class="detail-overline mono">${esc(d.detectionId)}</div><h2>${esc(d.ruleName)}</h2>${sev(d.severity)} <span class="source-chip">로컬 데이터</span></div><div class="detail-section"><h3>기본 정보</h3><div class="kv-grid">${kv('규칙',d.ruleId)}${kv('탐지 유형',d.detectionType)}${kv('자산',d.assetId)}${kv('탐지 시각 (UTC)',d.detectedAt)}${kv('관찰 출처',d.observedSources.join(', '))}${kv('합성 Fixture 사용',d.synthetic?'예':'아니오 · 실제 로컬 HTTP 요청')}${kv('근거 이벤트 수',d.eventCount)}${kv('실패 횟수',d.failureCount)}${d.successEventId?kv('뒤따른 성공 이벤트',d.successEventId):''}</div></div><div class="detail-section"><h3>분석 구간 및 규칙 조건</h3><p>${esc(d.analysisWindow.start)} ~ ${esc(d.analysisWindow.end)}</p><p>${d.analysisWindow.durationSeconds}초 구간 · ${d.ruleId==='KG-R001'?'인증 실패 5건':'실패 3건 이상 후 엄격히 나중 시각의 성공'}</p><p class="detail-note">${esc(d.reason)}</p></div><div class="detail-section"><h3>탐지 근거</h3><ul class="evidence-list">${evidence}</ul></div><div class="detail-section"><h3>한계 및 안내</h3><p class="detail-note">규칙 기반 의심 신호이며 실제 침해 확정이 아닙니다. 동일 사용자·공격자나 MITRE 기법을 확정하지 않습니다. 이 화면은 탐지 근거 조회용이며 조사 상태를 저장하지 않습니다. 로컬 테스트 키 변경과 HTTP 인증 검증은 대응 및 검증 화면에서 수행합니다. 모의 대응은 브라우저 내부 동작입니다.</p></div>`;
+ $('incident-detail').innerHTML=`<div class="detail-header"><div class="detail-overline mono">${esc(d.detectionId)}</div><h2>${esc(d.ruleName)}</h2>${sev(d.severity)} <span class="source-chip">로컬 데이터</span></div><div class="detail-section"><h3>탐지 근거</h3><ul class="evidence-list">${evidence}</ul></div><div class="detail-section"><h3>분석 구간 및 규칙 조건</h3><p>${esc(d.analysisWindow.start)} ~ ${esc(d.analysisWindow.end)}</p><p>${d.analysisWindow.durationSeconds}초 구간 · ${d.ruleId==='KG-R001'?'인증 실패 5건':'실패 3건 이상 후 엄격히 나중 시각의 성공'}</p><p class="detail-note">${esc(d.reason)}</p></div><div class="detail-section"><h3>기본 정보</h3><div class="kv-grid">${kv('규칙',d.ruleId)}${kv('탐지 유형',d.detectionType)}${kv('자산',d.assetId)}${kv('탐지 시각 (UTC)',d.detectedAt)}${kv('관찰 출처',d.observedSources.join(', '))}${kv('합성 Fixture 사용',d.synthetic?'예':'아니오 · 실제 로컬 HTTP 요청')}${kv('근거 이벤트 수',d.eventCount)}${kv('실패 횟수',d.failureCount)}${d.successEventId?kv('뒤따른 성공 이벤트',d.successEventId):''}</div></div><div class="detail-section"><h3>한계 및 안내</h3><p class="detail-note">규칙 기반 의심 신호이며 실제 침해 확정이 아닙니다. 동일 사용자·공격자나 MITRE 기법을 확정하지 않습니다. 이 화면은 탐지 근거 조회용이며 조사 상태를 저장하지 않습니다. 로컬 테스트 키 변경과 HTTP 인증 검증은 대응 및 검증 화면에서 수행합니다. 모의 대응은 브라우저 내부 동작입니다.</p></div>`;
 }
 const sev=x=>`<span class="sev ${x.toLowerCase()}">${({HIGH:'높음',MEDIUM:'보통',LOW:'낮음'})[x]||esc(x)}</span>`,stat=x=>`<span class="stat ${x.toLowerCase()}">${({OPEN:'조사 대기',INVESTIGATING:'조사 중',CONTAINED:'모의 대응 완료'})[x]||esc(x)}</span>`;
 function current(){let h=location.hash.slice(1);return ['overview','incidents','lab'].includes(h)?h:({rules:'incidents',assets:'incidents',audit:'lab'}[h]||'overview')}function nav(){let p=current();if(activePage!==p){cancelLocal();activePage=p;if(typeof LabUI!=='undefined')LabUI.onPage(p);if(p==='lab'){if(dataMode==='local')toast('대응 및 검증 화면으로 이동합니다.');dataMode='demo'}if(dataMode==='local')void refreshLocal()}render();let names={overview:'보안 현황',incidents:'사고 분석',lab:'대응 및 검증'};$('top-location').textContent=names[p];document.querySelectorAll('.page').forEach(x=>x.hidden=x.id!==`page-${p}`);document.querySelectorAll('[data-page]').forEach(x=>{let yes=x.dataset.page===p;x.classList.toggle('active',yes);yes?x.setAttribute('aria-current','page'):x.removeAttribute('aria-current')})}function go(p){location.hash=p;nav()}
