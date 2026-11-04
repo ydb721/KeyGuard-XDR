@@ -467,3 +467,51 @@ test('All application disclosure controls are removed while original events and 
   assert.ok(html.includes('id="lab-confirm-yes"'));assert.ok(html.includes('id="lab-confirm-no"'));
   h.hash('#lab');assert.equal(h.items.get('data-source-controls').hidden,true);
 });
+
+
+test('Investigate uses Detect Korean incident names while preserving every original title and technical record', async t => {
+  const h=harness(t);await h.ready();h.change('data-source','demo');
+  const original=h.run('JSON.stringify(state.incidents)');
+  const names=[['KG-0214','인증정보 사용 이상'],['KG-0213','비정상 데이터 전송 징후'],['KG-0212','반복된 인증 실패'],['KG-0211','의심스러운 요청 내용'],['KG-0210','예상하지 못한 권한 변경']];
+  for(const [id,name] of names){
+    const record=h.run(`state.incidents.find(x=>x.id==='${id}')`);
+    assert.ok(h.items.get('queue-body').innerHTML.includes(`<strong class="main-cell">${name}</strong>`));
+    h.click({incident:id});
+    assert.equal(h.run('current()'),'incidents');
+    assert.ok(h.items.get('incident-body').innerHTML.includes(`<strong class="main-cell">${name}</strong>`));
+    const detail=h.items.get('incident-detail').innerHTML;
+    assert.ok(detail.includes(`<h2>${name}</h2>`));
+    for(const value of [record.title,record.id,record.rule,record.asset,record.ruleName])assert.ok(detail.includes(value),value);
+  }
+  assert.equal(h.run('JSON.stringify(state.incidents)'),original);
+  assert.equal(h.run('state.audit.length'),4);
+});
+
+test('Korean and original incident-name searches resolve the same record without altering original data', async t => {
+  const h=harness(t);await h.ready();h.change('data-source','demo');h.hash('#incidents');
+  for(const query of ['인증정보 사용 이상','Unusual API key activity']){
+    h.run(`state.search=${JSON.stringify(query)};incidents()`);
+    assert.match(h.items.get('incident-body').innerHTML,/KG-0214/);
+    assert.doesNotMatch(h.items.get('incident-body').innerHTML,/KG-0213/);
+    assert.match(h.items.get('incident-detail').innerHTML,/<h2>인증정보 사용 이상<\/h2>/);
+  }
+  assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').title"),'Unusual API key activity');
+  assert.equal(h.run("incidentName({rule:'unknown-rule',title:'Original unknown incident'})"),'Original unknown incident');
+});
+
+
+test('Investigate removes only the heading shortcut and retains all selected-incident actions and sidebar navigation', async t => {
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const investigate=html.slice(html.indexOf('<section id="page-incidents"'),html.indexOf('<section id="page-lab"'));
+  const heading=investigate.slice(0,investigate.indexOf('<div class="toolbar">'));
+  assert.doesNotMatch(heading,/data-go="lab"|대응 및 검증으로/);
+  assert.match(html,/<button class="nav-item" data-page="lab">대응 및 검증/);
+  const h=harness(t);await h.ready();h.change('data-source','demo');h.click({incident:'KG-0214'});
+  const detail=h.items.get('incident-detail').innerHTML;
+  assert.match(detail,/data-investigate="KG-0214"[^>]*>조사 시작/);
+  assert.match(detail,/data-contain="KG-0214"[^>]*>모의 대응/);
+  assert.match(detail,/data-go="lab">대응 및 검증으로/);
+  h.click({investigate:'KG-0214'});assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').status"),'INVESTIGATING');
+  h.click({contain:'KG-0214'});assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').status"),'CONTAINED');
+  h.click({go:'lab'});assert.equal(h.run('current()'),'lab');
+});
