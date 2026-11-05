@@ -380,3 +380,22 @@
   .main .scenario-action-row { flex-wrap: wrap; gap: 10px; }
   .main .scenario-action-row .lab-cta { margin-left: auto; }
 }
+
+
+/* Respond-only soft lavender action: subdued in both themes, readable on hover. */
+.main .scenario-action-row #run-simulation {
+  background: color-mix(in srgb, var(--blue-soft) 68%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--border));
+  color: var(--blue);
+  box-shadow: none;
+}
+body[data-theme="light"] .main .scenario-action-row #run-simulation {
+  color: #5745a8;
+}
+body[data-theme="dark"] .main .scenario-action-row #run-simulation {
+  color: #d5ccff;
+}
+.main .scenario-action-row #run-simulation:hover:not(:disabled) {
+  background: var(--blue-soft);
+  border-color: color-mix(in srgb, var(--blue) 36%, var(--border));
+}
