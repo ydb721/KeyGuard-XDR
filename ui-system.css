@@ -1,0 +1,328 @@
+/* KeyGuard XDR v0.5 — shared UI system for Detect / Investigate / Respond.
+   This layer is intentionally presentation-only. Existing light/dark tokens remain authoritative. */
+
+:root {
+  --ui-radius: 10px;
+  --ui-radius-sm: 7px;
+  --ui-spacing: 16px;
+}
+
+/* One content width and predictable rhythm across the three workspaces. */
+.main {
+  max-width: 1500px;
+  padding: 24px 28px 32px;
+}
+.main .page,
+.main .detect-intro { min-width: 0; }
+.main .detect-intro { margin-bottom: 18px; }
+.main .page-header,
+.main .incident-heading.page-header,
+.main .detect-intro .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  min-height: 44px;
+  margin: 0 0 18px;
+}
+.main .page-header h1,
+.main .incident-heading.page-header h1,
+.main .detect-intro .page-header h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 730;
+  letter-spacing: -.035em;
+  line-height: 1.35;
+  color: var(--text);
+}
+.main .page-header .heading-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.main .page-source-badge,
+.main .detect-source.page-source-badge,
+.main .incident-source-tag.page-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 11px;
+  min-height: 27px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--alt);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Consistent card borders and headers (not loud stacked callouts). */
+.main .surface,
+.main .metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+.main .surface-header {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 15px 18px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.main .surface-header h2,
+.main .detect-page .surface-header h2,
+.main .lab-key-panel .surface-header h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: -.015em;
+}
+.main .count-muted,
+.main .data-note { font-size: 11px; font-weight: 600; }
+.main .detect-page .link-btn { font-size: 12px; }
+.main .link-btn { font-weight: 650; }
+
+/* Detect: KPIs precede findings. Their typography is scaled to match detail cards. */
+.main .detect-statistics { margin: 0 0 16px; }
+.main .detect-statistics .metric-grid { gap: 12px; margin-bottom: 0; }
+.main .detect-statistics .metric-card {
+  padding: 16px 18px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+}
+.main .detect-statistics .metric-head { font-size: 11.5px; font-weight: 650; }
+.main .detect-statistics .metric-value {
+  margin-top: 8px;
+  font-size: 27px;
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.25;
+}
+.main .detect-statistics .metric-footer,
+.main .detect-statistics .rule-summary {
+  font-size: 11px;
+  line-height: 1.55;
+  margin-top: 6px;
+}
+.main .detect-page .queue-panel,
+.main .detect-page .local-events { margin-bottom: var(--ui-spacing); }
+
+/* Shared data tables: same title, metadata, severity, and timestamps. */
+.main .data-table th,
+.main .detect-page .queue-table th {
+  padding: 12px 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .015em;
+  color: var(--muted);
+}
+.main .data-table td,
+.main .detect-page .queue-table td,
+.main .lab-audit-table td {
+  padding: 13px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  vertical-align: middle;
+}
+.main .data-table .main-cell,
+.main .detect-page .queue-table .main-cell {
+  font-size: 12.5px;
+  line-height: 1.55;
+  font-weight: 690;
+  letter-spacing: -.01em;
+}
+.main .data-table .table-secondary,
+.main .detect-page .queue-table .table-secondary {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  font-weight: 450;
+  color: var(--faint);
+}
+.main .data-table .date-cell { font-size: 11.5px; color: var(--muted); }
+.main .sev,
+.main .stat,
+.main .source-chip,
+.main .event-type,
+.main .detect-page .queue-table .sev,
+.main .detect-page .queue-table .stat {
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10.5px;
+  font-weight: 690;
+  line-height: 1.4;
+}
+.main .empty-row { padding: 30px 16px; font-size: 12px; }
+
+/* Controls are consistently sized; status filters resemble a compact toolbar. */
+.main .btn,
+.main .lab-key-actions .btn,
+.main .lab-operator-row .btn {
+  min-height: 36px;
+  padding: 8px 13px;
+  border-radius: var(--ui-radius-sm);
+  font-size: 12px;
+  font-weight: 690;
+}
+.main .btn.full { min-height: 40px; }
+.main .field-select,
+.main .search-field,
+.main .lab-operator-row input {
+  min-height: 36px;
+  border-radius: var(--ui-radius-sm);
+  font-size: 12px;
+}
+.main .toolbar,
+.main .source-controls:not([hidden]) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--ui-radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: none;
+}
+.main .toolbar { gap: 10px 14px; }
+.main .filter-group { gap: 6px; }
+.main .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border-radius: var(--ui-radius-sm);
+  padding: 7px 11px;
+  font-size: 11.5px;
+  font-weight: 620;
+}
+.main .toolbar-right { gap: 8px; }
+.main .toolbar-right label:not(.search-field),
+.main .source-actions label { font-size: 11.5px; font-weight: 650; color: var(--muted); }
+.main .search-field { padding: 0 10px; }
+.main .search-field input { min-height: 34px; font-size: 12px; }
+.main .source-controls .source-actions .field-select,
+.main .source-controls .source-actions .btn { min-height: 36px; font-size: 12px; }
+.main .source-diagnostics p,
+.main .source-diagnostics small,
+.main .detect-scope { font-size: 11.5px; line-height: 1.65; }
+
+/* Investigate: balanced list/detail panels; same card header rhythm as other tabs. */
+.main .case-layout { gap: var(--ui-spacing); grid-template-columns: minmax(0,1.55fr) minmax(320px,1fr); }
+.main .cases-panel { border-radius: var(--ui-radius); }
+.main .case-table td { padding-top: 14px; padding-bottom: 14px; }
+.main .detail-panel { min-height: 360px; border-radius: var(--ui-radius); }
+.main .detail-header { padding-top: 18px; padding-bottom: 17px; }
+.main .detail-header h2 { font-size: 17px; line-height: 1.4; letter-spacing: -.025em; }
+.main .detail-section h3 { font-size: 11.5px; font-weight: 700; }
+.main .detail-note,
+.main .evidence-list li { font-size: 11.5px; line-height: 1.65; }
+.main .detail-evidence { border-radius: var(--ui-radius-sm); }
+
+/* Respond: heading comes first; sample reset remains available, but not a second hero banner. */
+.main #page-lab .simulation-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 10px 15px;
+  margin: 0 0 16px;
+  border: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  color: var(--muted);
+}
+.main #page-lab .simulation-banner strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0;
+}
+.main #page-lab .simulation-banner span { font-size: 11.5px; line-height: 1.55; }
+.main #page-lab .simulation-banner .quiet-button {
+  padding: 6px 9px;
+  border-radius: var(--ui-radius-sm);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.main #page-lab .simulation-banner .quiet-button:hover { background: var(--hover); color: var(--text); text-decoration: none; }
+.main .lab-key-panel { margin-bottom: var(--ui-spacing); }
+.main .lab-key-panel .lab-key-content { padding: 18px; }
+.main .lab-area-heading {
+  margin: 16px 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+.main .lab-grid { gap: var(--ui-spacing); grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+.main .lab-left,
+.main .lab-right { gap: var(--ui-spacing); }
+.main .scenario-list { gap: 10px; padding: 16px; }
+.main .scenario-card {
+  min-height: 92px;
+  padding: 13px 12px;
+  border-radius: var(--ui-radius-sm);
+  background: var(--alt);
+}
+.main .scenario-card strong { font-size: 12px; line-height: 1.4; }
+.main .scenario-card.active { background: var(--blue-soft); }
+.main .lab-output { min-height: 190px; padding: 18px; }
+.main #scenario-detail { padding: 15px 18px 4px; font-size: 12px; }
+.main .lab-cta { padding: 14px 16px 16px; }
+.main .audit-inline { margin-top: 16px; }
+.main .lab-key-panel:has(#lab-controls[hidden]) .lab-key-content { padding: 14px 18px; }
+.main .lab-key-panel:has(#lab-controls[hidden]) .surface-header { min-height: 48px; }
+
+/* Accessible focus rings and responsive behavior shared across all three tabs. */
+.main button:focus-visible,
+.main input:focus-visible,
+.main select:focus-visible,
+.side-nav button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+@media (max-width: 1120px) {
+  .main .case-layout,
+  .main .lab-grid { grid-template-columns: 1fr; }
+  .main .detail-panel { position: static; }
+}
+@media (max-width: 760px) {
+  .main { padding: 16px 14px 24px; }
+  .main .page-header,
+  .main .incident-heading.page-header,
+  .main .detect-intro .page-header { margin-bottom: 16px; gap: 10px; }
+  .main .page-header h1,
+  .main .incident-heading.page-header h1,
+  .main .detect-intro .page-header h1 { font-size: 23px; }
+  .main .page-source-badge { font-size: 10.5px; }
+  .main .respond-header .heading-right { justify-content: flex-start; }
+  .main .surface-header { min-height: 51px; padding: 13px 15px; }
+  .main .toolbar,
+  .main .source-controls:not([hidden]) { padding: 11px 12px; }
+  .main .toolbar-right { flex-wrap: wrap; }
+  .main .filter-group { flex-wrap: wrap; }
+  .main .detect-page .queue-table td,
+  .main .lab-audit-table td { display: block; padding: 0; border: 0; }
+  .main .detect-page .queue-table td:nth-child(4) { font-size: 11.5px; }
+  .main .detect-page .queue-table .sev,
+  .main .detect-page .queue-table .stat { font-size: 10.5px; }
+  .main .lab-audit-table td::before { display: block; }
+  .main .lab-key-panel .lab-key-content { padding: 14px; }
+  .main #page-lab .simulation-banner { padding: 10px 12px; }
+  .main .scenario-list { grid-template-columns: 1fr; }
+  .main .scenario-card { min-height: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .main .page, .main .surface, .main .btn { animation: none; transition: none; }
+}
