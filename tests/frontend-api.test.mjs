@@ -569,3 +569,35 @@ test('Hosted Investigate uses concise source badge without dead localhost lookup
   assert.equal(local.items.get('source-diagnostics').hidden,true);
   assert.equal(local.items.get('incidents-source').textContent,'샘플 데이터');
 });
+
+
+test('Detect, Investigate and Respond share headings, surfaces, and responsive typography without changing behavior', async t => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../ui-system.css', import.meta.url), 'utf8');
+  assert.match(html, /<link rel="stylesheet" href="\.\/ui-system\.css">/);
+  for (const id of ['overview-title','incidents-title','lab-title']) {
+    assert.match(html, new RegExp('<h1 id="' + id + '">'));
+  }
+  assert.equal((html.match(/page-heading[^\"]*page-header/g) || []).length, 3);
+  assert.equal((html.match(/page-source-badge/g) || []).length, 3);
+  assert.ok(html.indexOf('id="metric-grid"') < html.indexOf('id="detect-results-panel"'));
+  assert.ok(html.indexOf('id="source-banner"') > html.indexOf('<section id="page-lab"'));
+  assert.ok(css.includes('.main .page-header h1'));
+  assert.ok(css.includes('.main .data-table .main-cell'));
+  assert.ok(css.includes('.main .lab-grid'));
+  assert.match(css, /@media\s*\(max-width:\s*760px\)/);
+
+  const local = harness(t); await local.ready();
+  assert.equal(local.items.get('detect-source').textContent, '로컬 데이터');
+  assert.equal(local.items.get('incidents-source').textContent, '로컬 데이터');
+  assert.equal(local.items.get('respond-source').textContent, '로컬 키 · 샘플 시나리오');
+  local.hash('#lab');
+  assert.equal(local.items.get('source-banner').hidden, false);
+  const hosted = harness(t, {protocol:'https:', hostname:'keyguard-xdr-v050.vercel.app'});
+  await hosted.ready();
+  assert.equal(hosted.items.get('respond-source').textContent, '샘플 데이터');
+  assert.equal(hosted.run('state.incidents.length'), 5);
+  hosted.hash('#incidents');
+  assert.match(hosted.items.get('incident-detail').innerHTML, /KG-0214/);
+  assert.equal(hosted.calls.length, 0);
+});
