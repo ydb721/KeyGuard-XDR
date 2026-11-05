@@ -34,16 +34,16 @@ async function refreshLocal(){
 }
 function renderSource(){
  const local=dataMode==='local',labPage=current()==='lab';
- $('data-source-controls').hidden=labPage;$('data-source').value=dataMode;$('local-source-option').disabled=!localEligible;
+ $('data-source-controls').hidden=labPage||!localEligible;$('data-source').value=dataMode;$('local-source-option').disabled=!localEligible;
  $('refresh-local').hidden=!local;$('refresh-local').textContent=['Error','Unavailable','Invalid Response'].includes(live.status)?'다시 시도':'새로고침';
  $('connection-status').textContent=local?`${({Connected:'연결됨',Empty:'연결됨 · 기록 없음',Loading:'조회 중',Error:'조회 실패',Unavailable:'로컬 조회 불가','Invalid Response':'응답 오류'})[live.status]||'조회 전'}${live.message?' · '+live.message:''}${live.stale?' · 이전 조회 데이터이며 최신 상태가 아닙니다.':''}`:
   `시나리오 분석${localEligible?'':' · 실제 이벤트 조회는 로컬 서버에서 지원합니다.'}`;
- $('connection-status').dataset.status=local?live.status:'Simulation';
+ $('connection-status').dataset.status=local?live.status:'Simulation';$('source-diagnostics').hidden=!local;
  $('last-loaded').textContent=live.lastSuccess?`마지막 정상 조회: ${live.lastSuccess} · 이벤트/탐지 각각 최대 100건 · 전체 누적 건수 아님`:'조회 이력 없음';
  $('source-title').textContent=labPage?'로컬 테스트 키 · 시나리오 분석':local?'로컬 데이터':'시나리오 분석';
  $('source-description').textContent=local?'':'샘플 데이터 화면입니다. 실제 이벤트 탐지 및 키 관리는 로컬 서버에서 지원합니다.';$('source-description').hidden=local;
  $('mode-label').textContent=labPage?'테스트 키 · 시나리오 분석':local?'로컬 데이터':'시나리오 분석';$('reset-demo').hidden=local;
- $('sidebar-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source-note').textContent=local?'수집 기록':'브라우저 샘플 기록';$('sidebar-source-tag').textContent=local?'로컬':'샘플';
+ $('incidents-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source-note').textContent=local?'수집 기록':'브라우저 샘플 기록';$('sidebar-source-tag').textContent=local?'로컬':'샘플';
  $('status-filters').hidden=local;$('local-event-panel').hidden=!local;$('rule-summary').hidden=!local;
  $('queue-status-heading').textContent=local?'판정':'상태';$('case-status-heading').textContent=local?'판정':'상태';
  $('incident-search').value=local?live.search:state.search;
@@ -77,8 +77,8 @@ function detectPresentation(){
  $('detect-scope').textContent=local?`이벤트와 탐지 각각 최근 최대 100건 · 전체 누적 건수 아님 · ${ready?`마지막 성공 확인: ${new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'medium'}).format(new Date(live.lastSuccess))} (한국 시간)`:'마지막 성공 확인: 없음'}`:'데이터 출처: 샘플 데이터 · 실제 이벤트 탐지 및 키 관리는 로컬 서버에서 지원합니다.';
  $('detect-scope').hidden=!overview;
  $('detect-technical').hidden=!overview||(local&&!hasDetections&&!hasEvents);
- $('connection-status').hidden=overview;
- $('last-loaded').hidden=overview;
+ $('connection-status').hidden=overview||!local;
+ $('last-loaded').hidden=overview||!local||!live.lastSuccess;
  // A zero/zero snapshot is explained once, above. Evidence outside the event range never hides detections.
  $('detect-results-panel').hidden=!hasDetections;$('detect-detail-link').hidden=!hasDetections;
  $('detect-table').hidden=!hasDetections;$('detect-empty').hidden=true;
