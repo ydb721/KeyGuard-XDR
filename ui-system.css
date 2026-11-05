@@ -341,3 +341,6 @@
 .main .detect-statistics .metric-card:is(.metric-warning,.metric-danger,.metric-success,.metric-info) .metric-value {
   color: var(--metric-tone);
 }
+
+/* Page headers already expose sample/local origin. Do not duplicate that status in the sidebar. */
+.sidebar-bottom { display: none; }
