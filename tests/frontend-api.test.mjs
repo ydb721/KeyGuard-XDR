@@ -332,7 +332,9 @@ test('Direct query controls preserve theme, refresh and navigation without extra
   h.run("theme('dark');render()");
   assert.equal(controls.hidden,false);assert.equal(h.items.get('refresh-local').hidden,false);assert.equal(h.calls.length,before);
   h.hash('#incidents');await h.ready();assert.equal(controls.hidden,false);
-  assert.equal(h.items.get('source-banner').hidden,false);
+  assert.equal(h.items.get('source-banner').hidden,true);
+  h.hash('#lab');await h.ready();assert.equal(h.items.get('source-banner').hidden,false);
+  assert.equal(h.items.get('reset-demo').hidden,false);
   h.hash('#overview');await h.ready();assert.equal(controls.hidden,false);
   assert.equal(h.items.get('source-banner').hidden,true);
   assert.equal(h.ctx.document.body.dataset.theme,'dark');
