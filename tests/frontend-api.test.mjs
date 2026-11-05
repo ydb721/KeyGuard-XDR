@@ -545,3 +545,27 @@ test('Simulation audit classification is Korean presentation only; original audi
   for(const type of ['DETECTION','RESPONSE','TRIAGE','SIMULATION'])assert.ok(csv.includes(`"${type}"`));
   assert.equal(h.run('JSON.stringify(state.audit)'),beforeRender);
 });
+
+test('Hosted Investigate uses concise source badge without dead localhost lookup controls', async t => {
+  const hosted=harness(t,{protocol:'https:',hostname:'keyguard-xdr-v050.vercel.app'});
+  await hosted.ready();
+  assert.equal(hosted.run('localEligible'),false);
+  assert.equal(hosted.run('dataMode'),'demo');
+  assert.equal(hosted.items.get('data-source-controls').hidden,true);
+  hosted.hash('#incidents');
+  assert.equal(hosted.items.get('data-source-controls').hidden,true);
+  assert.equal(hosted.items.get('source-banner').hidden,true);
+  assert.equal(hosted.items.get('source-diagnostics').hidden,true);
+  assert.equal(hosted.items.get('connection-status').hidden,true);
+  assert.equal(hosted.items.get('last-loaded').hidden,true);
+  assert.equal(hosted.items.get('incidents-source').textContent,'샘플 데이터');
+  assert.match(hosted.items.get('incident-body').innerHTML,/KG-0214/);
+  assert.equal(hosted.calls.length,0);
+  const local=harness(t);await local.ready();local.hash('#incidents');await local.ready();
+  assert.equal(local.items.get('data-source-controls').hidden,false);
+  assert.equal(local.items.get('incidents-source').textContent,'로컬 데이터');
+  local.change('data-source','demo');
+  assert.equal(local.items.get('data-source-controls').hidden,false);
+  assert.equal(local.items.get('source-diagnostics').hidden,true);
+  assert.equal(local.items.get('incidents-source').textContent,'샘플 데이터');
+});
