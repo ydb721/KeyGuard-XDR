@@ -344,3 +344,39 @@
 
 /* Page headers already expose sample/local origin. Do not duplicate that status in the sidebar. */
 .sidebar-bottom { display: none; }
+
+
+/* Compact scenario action row: text on the left, run button on the right. */
+.main .scenario-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  min-width: 0;
+}
+.main .scenario-action-row #scenario-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.main .scenario-action-row #scenario-detail p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.main .scenario-action-row .lab-cta {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
+}
+.main .scenario-action-row #run-simulation {
+  width: auto;
+  min-width: 124px;
+  min-height: 36px;
+}
+@media (max-width: 520px) {
+  .main .scenario-action-row { flex-wrap: wrap; gap: 10px; }
+  .main .scenario-action-row .lab-cta { margin-left: auto; }
+}
