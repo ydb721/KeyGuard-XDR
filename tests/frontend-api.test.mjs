@@ -333,8 +333,6 @@ test('Direct query controls preserve theme, refresh and navigation without extra
   assert.equal(controls.hidden,false);assert.equal(h.items.get('refresh-local').hidden,false);assert.equal(h.calls.length,before);
   h.hash('#incidents');await h.ready();assert.equal(controls.hidden,false);
   assert.equal(h.items.get('source-banner').hidden,true);
-  h.hash('#lab');await h.ready();assert.equal(h.items.get('source-banner').hidden,false);
-  assert.equal(h.items.get('reset-demo').hidden,false);
   h.hash('#overview');await h.ready();assert.equal(controls.hidden,false);
   assert.equal(h.items.get('source-banner').hidden,true);
   assert.equal(h.ctx.document.body.dataset.theme,'dark');
@@ -344,6 +342,8 @@ test('Direct query controls preserve theme, refresh and navigation without extra
   assert.match(html,/<div id="data-source-controls" class="source-controls">/);
   const toolbar=html.slice(html.indexOf('<div id="data-source-controls"'),html.indexOf('<section id="page-overview"'));
   for(const id of ['data-source','refresh-local','connection-status','detect-scope'])assert.ok(toolbar.includes(`id="${id}"`),id);
+  h.hash('#lab');await h.ready();assert.equal(h.items.get('source-banner').hidden,false);
+  assert.equal(h.items.get('reset-demo').hidden,false);
 });
 
 test('Errors and stale status remain visible beside direct query controls; demo provenance stays distinct', async t => {
