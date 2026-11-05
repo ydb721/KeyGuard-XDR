@@ -241,6 +241,7 @@ test('Detect distinguishes before-query/loading from a successfully queried empt
   assert.equal(h.items.get('detect-table').hidden,true);
   await h.ready();
   assert.equal(h.items.get('detect-status').dataset.state,'empty');
+  assert.equal(h.items.get('detect-status').hidden,false);
   assert.match(h.items.get('detect-status-title').textContent,/수집/);
   assert.equal(h.items.get('detect-status-description').hidden,true);
   assert.match(readFileSync(new URL('../README.md',import.meta.url),'utf8'),/PC 전체의 안전 여부를 판단할 수 없습니다/);
@@ -293,6 +294,8 @@ test('Detect remains read-only while source changes and practice navigation pres
   assert.equal(h.items.get('data-source-controls').hidden,false);
   h.run('render()');assert.equal(h.items.get('refresh-local').hidden,false);
   h.change('data-source','demo');assert.equal(h.items.get('detect-status').dataset.state,'simulation');
+  assert.equal(h.items.get('detect-status').hidden,true);
+  assert.equal(h.items.get('detect-source').textContent,'샘플 데이터');
   assert.match(h.items.get('queue-body').innerHTML,/샘플 사고/);
   assert.equal(h.run('state.incidents.length'),5);assert.equal(h.run('state.audit.length'),4);
   h.hash('#lab');assert.equal(h.items.get('detect-intro').hidden,true);
