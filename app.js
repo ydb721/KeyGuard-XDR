@@ -56,7 +56,7 @@ function detectPresentation(){
  const hasDetections=local?ready&&live.detections.length>0:state.incidents.length>0;
  const hasEvents=local&&ready&&live.events.length>0;
  document.body.dataset.page=current();
- $('detect-intro').hidden=!overview;$('source-banner').hidden=overview;
+ $('detect-intro').hidden=!overview;$('detect-status').hidden=!local;$('source-banner').hidden=overview;
  $('detect-source').textContent=local?'로컬 데이터':'샘플 데이터';
  // Labels explain the validated snapshot without changing requests or cancellation state.
  let kind='before',label='조회 전',title='아직 보안 기록을 조회하지 않았습니다.',description='새로고침으로 조회할 수 있습니다.';
