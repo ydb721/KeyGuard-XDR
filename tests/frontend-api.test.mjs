@@ -601,3 +601,33 @@ test('Detect, Investigate and Respond share headings, surfaces, and responsive t
   assert.match(hosted.items.get('incident-detail').innerHTML, /KG-0214/);
   assert.equal(hosted.calls.length, 0);
 });
+
+
+test('Detect KPI cards use meaningful accent colors without marking zero or unavailable local counts as threats', async t => {
+  const css=readFileSync(new URL('../ui-system.css',import.meta.url),'utf8');
+  for(const semantic of ['metric-warning','metric-danger','metric-success','metric-info']){
+    assert.match(css,new RegExp('\\.metric-card\\.'+semantic));
+  }
+  assert.match(css,/color-mix\(in srgb, var\(--metric-tint\)/);
+  assert.match(css,/inset 0 3px 0 var\(--metric-tone\)/);
+  assert.ok(css.includes('var(--orange-soft)')&&css.includes('var(--red-soft)')&&css.includes('var(--green-soft)'));
+
+  const hosted=harness(t,{protocol:'https:',hostname:'keyguard-xdr-v050.vercel.app'});
+  await hosted.ready();
+  const cards=hosted.items.get('metric-grid').innerHTML;
+  for(const [label,kind] of [['조사 대기 사고','metric-warning'],['고위험 사고','metric-danger'],['대응 완료','metric-success']]){
+    assert.match(cards,new RegExp('class="metric-card '+kind+'"><div class="metric-head">'+label));
+  }
+  hosted.run("state.incidents.forEach(x=>x.status='CONTAINED');render()");
+  const zero=hosted.items.get('metric-grid').innerHTML;
+  assert.match(zero,/class="metric-card metric-neutral"><div class="metric-head">조사 대기 사고/);
+  assert.match(zero,/class="metric-card metric-neutral"><div class="metric-head">고위험 사고/);
+
+  const local=harness(t);
+  assert.match(local.items.get('metric-grid').innerHTML,/class="metric-card metric-neutral"><div class="metric-head">최근 조회 이벤트/);
+  await local.ready();
+  const localCards=local.items.get('metric-grid').innerHTML;
+  assert.match(localCards,/class="metric-card metric-info"><div class="metric-head">최근 조회 이벤트/);
+  assert.match(localCards,/class="metric-card metric-danger"><div class="metric-head">조회된 탐지 결과/);
+  assert.match(localCards,/class="metric-card metric-warning"><div class="metric-head">조회된 인증 실패/);
+});
