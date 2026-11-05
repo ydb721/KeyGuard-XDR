@@ -43,7 +43,7 @@ function renderSource(){
  $('source-title').textContent=labPage?'로컬 테스트 키 · 시나리오 분석':local?'로컬 데이터':'시나리오 분석';
  $('source-description').textContent=local?'':'샘플 데이터 화면입니다. 실제 이벤트 탐지 및 키 관리는 로컬 서버에서 지원합니다.';$('source-description').hidden=local;
  $('mode-label').textContent=labPage?'테스트 키 · 시나리오 분석':local?'로컬 데이터':'시나리오 분석';$('reset-demo').hidden=local;
- $('incidents-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source-note').textContent=local?'수집 기록':'브라우저 샘플 기록';$('sidebar-source-tag').textContent=local?'로컬':'샘플';
+ $('incidents-source').textContent=local?'로컬 데이터':'샘플 데이터';$('respond-source').textContent=localEligible?'로컬 키 · 샘플 시나리오':'샘플 데이터';$('sidebar-source').textContent=local?'로컬 데이터':'샘플 데이터';$('sidebar-source-note').textContent=local?'수집 기록':'브라우저 샘플 기록';$('sidebar-source-tag').textContent=local?'로컬':'샘플';
  $('status-filters').hidden=local;$('local-event-panel').hidden=!local;$('rule-summary').hidden=!local;
  $('queue-status-heading').textContent=local?'판정':'상태';$('case-status-heading').textContent=local?'판정':'상태';
  $('incident-search').value=local?live.search:state.search;
