@@ -631,3 +631,22 @@ test('Detect KPI cards use meaningful accent colors without marking zero or unav
   assert.match(localCards,/class="metric-card metric-danger"><div class="metric-head">조회된 탐지 결과/);
   assert.match(localCards,/class="metric-card metric-warning"><div class="metric-head">조회된 인증 실패/);
 });
+
+
+test('Respond scenario description and run action share a compact horizontal row', async t => {
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../ui-system.css',import.meta.url),'utf8');
+  assert.match(html,/<article class="surface scenario-action-row"><div id="scenario-detail"><\/div><div class="lab-cta"><button id="run-simulation" class="btn primary">시나리오 실행<\/button><\/div><\/article>/);
+  assert.match(css,/\.main \.scenario-action-row\s*\{\s*display:\s*flex/);
+  assert.match(css,/\.main \.scenario-action-row \.lab-cta\s*\{[^}]*margin-left:\s*auto/);
+  assert.match(css,/\.main \.scenario-action-row #run-simulation\s*\{[^}]*width:\s*auto/);
+  assert.match(html,/<button id="perform-response" class="btn secondary full"/);
+
+  const hosted=harness(t,{protocol:'https:',hostname:'keyguard-xdr-v050.vercel.app'});
+  await hosted.ready();
+  hosted.hash('#lab');
+  const before=hosted.run('state.incidents.length');
+  hosted.items.get('run-simulation').click();
+  assert.equal(hosted.run('state.incidents.length'),before+1);
+  assert.match(hosted.items.get('lab-output').innerHTML,/샘플 사고가 생성되었습니다/);
+});
