@@ -326,3 +326,18 @@
 @media (prefers-reduced-motion: reduce) {
   .main .page, .main .surface, .main .btn { animation: none; transition: none; }
 }
+
+/* Detect summary cards: semantic, restrained color in both light and dark mode.
+   Zero or unavailable counts remain neutral to avoid implying an active threat. */
+.main .detect-statistics .metric-card.metric-warning { --metric-tone: var(--orange); --metric-tint: var(--orange-soft); }
+.main .detect-statistics .metric-card.metric-danger { --metric-tone: var(--red); --metric-tint: var(--red-soft); }
+.main .detect-statistics .metric-card.metric-success { --metric-tone: var(--green); --metric-tint: var(--green-soft); }
+.main .detect-statistics .metric-card.metric-info { --metric-tone: var(--blue); --metric-tint: var(--blue-soft); }
+.main .detect-statistics .metric-card:is(.metric-warning,.metric-danger,.metric-success,.metric-info) {
+  background: color-mix(in srgb, var(--metric-tint) 78%, var(--surface));
+  border-color: color-mix(in srgb, var(--metric-tone) 31%, var(--border));
+  box-shadow: inset 0 3px 0 var(--metric-tone);
+}
+.main .detect-statistics .metric-card:is(.metric-warning,.metric-danger,.metric-success,.metric-info) .metric-value {
+  color: var(--metric-tone);
+}
