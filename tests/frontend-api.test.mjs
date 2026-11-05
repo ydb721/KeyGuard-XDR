@@ -384,12 +384,12 @@ test('Concise source labels distinguish local key management from browser simula
   assert.equal(h.items.get('source-title').textContent,'로컬 데이터');
   h.change('data-source','demo');
   assert.equal(h.items.get('source-title').textContent,'시나리오 분석');
-   assert.match(h.items.get('detect-scope').textContent,/데이터 출처: 샘플 데이터.*로컬 서버/);
+  assert.match(h.items.get('detect-scope').textContent,/데이터 출처: 샘플 데이터.*로컬 서버/);
   assert.equal(h.items.get('detect-source').textContent,'샘플 데이터');
   h.hash('#lab');
   assert.equal(h.items.get('source-title').textContent,'로컬 테스트 키 · 시나리오 분석');
-   assert.equal(h.items.get('source-description').hidden,false);
-   assert.match(h.items.get('source-description').textContent,/실제 이벤트 탐지 및 키 관리는 로컬 서버/);
+  assert.equal(h.items.get('source-description').hidden,false);
+  assert.match(h.items.get('source-description').textContent,/실제 이벤트 탐지 및 키 관리는 로컬 서버/);
   h.run("run();change(state.last,'CONTAINED')");
   assert.match(h.items.get('lab-output').innerHTML,/시나리오 처리 기록 완료.*미검증/);
   assert.equal(h.run('state.audit.length'),7);
