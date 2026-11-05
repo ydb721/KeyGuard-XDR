@@ -153,7 +153,7 @@ test('leaving a loading page aborts requests and prevents late results replacing
   const pending=h.ready();h.hash('#lab');assert.equal(h.run('dataMode'),'demo');
   assert.ok(h.calls.every(c=>c.options.signal.aborted));waiting.forEach(resolve=>resolve());await pending;
   assert.equal(h.run('live.lastSuccess'),null);assert.equal(h.run('state.incidents.length'),5);
-  assert.match(h.items.get('source-title').textContent,/로컬 테스트 키.*모의 실습/);
+  assert.match(h.items.get('source-title').textContent,/로컬 테스트 키.*시나리오 분석/);
   // A response can finish before the browser delivers a queued hashchange event.
   const delayed=[];const moving=harness(t,{fetcher:path=>new Promise(resolve=>delayed.push(()=>resolve(response(payload(path,dataset())))))});
   const old=moving.ready();moving.ctx.location.hash='#incidents';delayed.forEach(resolve=>resolve());await old;
@@ -293,7 +293,7 @@ test('Detect remains read-only while source changes and practice navigation pres
   assert.equal(h.items.get('data-source-controls').hidden,false);
   h.run('render()');assert.equal(h.items.get('refresh-local').hidden,false);
   h.change('data-source','demo');assert.equal(h.items.get('detect-status').dataset.state,'simulation');
-  assert.match(h.items.get('queue-body').innerHTML,/교육용 합성 사고/);
+  assert.match(h.items.get('queue-body').innerHTML,/샘플 사고/);
   assert.equal(h.run('state.incidents.length'),5);assert.equal(h.run('state.audit.length'),4);
   h.hash('#lab');assert.equal(h.items.get('detect-intro').hidden,true);
   assert.equal(h.run('current()'),'lab');assert.equal(h.run('dataMode'),'demo');
@@ -349,10 +349,10 @@ test('Errors and stale status remain visible beside direct query controls; demo 
   assert.equal(h.items.get('detect-status').dataset.state,'stale');
   assert.match(h.items.get('detect-status-description').textContent,/최신 상태가 아닙니다/);
   h.change('data-source','demo');
-  assert.equal(h.items.get('detect-source').textContent,'모의 데이터');
+  assert.equal(h.items.get('detect-source').textContent,'샘플 데이터');
   assert.equal(h.items.get('detect-status').dataset.state,'simulation');
   assert.equal(h.items.get('detect-detail-link').hidden,false);
-  assert.match(h.items.get('queue-body').innerHTML,/교육용 합성 사고/);
+  assert.match(h.items.get('queue-body').innerHTML,/샘플 사고/);
   const normal=harness(t,{data:dataset(0,true)});await normal.ready();
   assert.equal(normal.items.get('detect-results-panel').hidden,true);
   assert.equal(normal.items.get('detect-detail-link').hidden,true);
@@ -383,12 +383,15 @@ test('Concise source labels distinguish local key management from browser simula
   const h=harness(t);await h.ready();
   assert.equal(h.items.get('source-title').textContent,'로컬 데이터');
   h.change('data-source','demo');
-  assert.equal(h.items.get('source-title').textContent,'모의 실습');
-  assert.equal(h.items.get('detect-source').textContent,'모의 데이터');
+  assert.equal(h.items.get('source-title').textContent,'시나리오 분석');
+  assert.match(h.items.get('detect-scope').textContent,/데이터 출처: 샘플 데이터.*로컬 서버/);
+  assert.equal(h.items.get('detect-source').textContent,'샘플 데이터');
   h.hash('#lab');
-  assert.equal(h.items.get('source-title').textContent,'로컬 테스트 키 · 모의 실습');
+  assert.equal(h.items.get('source-title').textContent,'로컬 테스트 키 · 시나리오 분석');
+  assert.equal(h.items.get('source-description').hidden,false);
+  assert.match(h.items.get('source-description').textContent,/실제 이벤트 탐지 및 키 관리는 로컬 서버/);
   h.run("run();change(state.last,'CONTAINED')");
-  assert.match(h.items.get('lab-output').innerHTML,/모의 대응 기록 완료.*미검증/);
+  assert.match(h.items.get('lab-output').innerHTML,/시나리오 처리 기록 완료.*미검증/);
   assert.equal(h.run('state.audit.length'),7);
 });
 
@@ -483,7 +486,7 @@ test('Investigate uses Detect Korean incident names while preserving every origi
     const detail=h.items.get('incident-detail').innerHTML;
     assert.ok(detail.includes(`<h2>${name}</h2>`));
     assert.match(detail,/사고 ID/);assert.match(detail,/탐지 근거/);assert.match(detail,/상세 정보/);
-    assert.match(detail,/브라우저 모의 데이터/);assert.ok(!detail.includes('CASE FILE'));
+    assert.match(detail,/샘플 데이터/);assert.ok(!detail.includes('CASE FILE'));
     for(const value of [record.title,record.id,record.rule,record.asset,record.ruleName])assert.ok(detail.includes(value),value);
   }
   assert.equal(h.run('JSON.stringify(state.incidents)'),original);
@@ -512,7 +515,7 @@ test('Investigate removes only the heading shortcut and retains all selected-inc
   const h=harness(t);await h.ready();h.change('data-source','demo');h.click({incident:'KG-0214'});
   const detail=h.items.get('incident-detail').innerHTML;
   assert.match(detail,/data-investigate="KG-0214"[^>]*>조사 시작/);
-  assert.match(detail,/data-contain="KG-0214"[^>]*>모의 대응/);
+  assert.match(detail,/data-contain="KG-0214"[^>]*>시나리오 처리/);
   assert.match(detail,/data-go="lab">대응 및 검증으로/);
   h.click({investigate:'KG-0214'});assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').status"),'INVESTIGATING');
   h.click({contain:'KG-0214'});assert.equal(h.run("state.incidents.find(x=>x.id==='KG-0214').status"),'CONTAINED');
@@ -528,7 +531,7 @@ test('Simulation audit classification is Korean presentation only; original audi
   h.run("run();change(state.last,'INVESTIGATING');change(state.last,'CONTAINED')");
   const beforeRender=h.run('JSON.stringify(state.audit)');h.run('audit()');
   assert.equal(h.run('JSON.stringify(state.audit)'),beforeRender);
-  for(const [type,label] of [['DETECTION','탐지'],['RESPONSE','대응'],['TRIAGE','조사'],['SIMULATION','모의 실습']]){
+  for(const [type,label] of [['DETECTION','탐지'],['RESPONSE','대응'],['TRIAGE','조사'],['SIMULATION','시나리오 분석']]){
     assert.ok(h.items.get('audit-body').innerHTML.includes(`class="event-type ${type.toLowerCase()}">${label}</span>`));
     assert.ok(h.run(`state.audit.some(x=>x.type==='${type}')`));
   }
